@@ -1,0 +1,52 @@
+included:
+  - tamagotchai/Sources
+
+excluded:
+  - .build
+  - DerivedData
+
+disabled_rules:
+  - trailing_comma
+
+opt_in_rules:
+  - closure_spacing
+  - empty_count
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - missing_docs
+  - modifier_order
+  - multiline_parameters
+  - operator_usage_whitespace
+  - overridden_super_call
+  - private_action
+  - private_outlet
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - vertical_parameter_alignment_on_call
+
+line_length:
+  warning: 120
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
+
+function_body_length:
+  warning: 50
+  error: 100
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 60
+    error: 80
