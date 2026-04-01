@@ -7,16 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		099956513258275C888D9C17 /* PromptPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D449322E10E6BB23C918E50 /* PromptPanelController.swift */; };
 		82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */; };
 		9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE7C40F97BE3426E3660AB3 /* ContentView.swift */; };
 		92232CF2F234B831875BD6C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */; };
+		DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TamagotchaiApp.swift; sourceTree = "<group>"; };
+		6D449322E10E6BB23C918E50 /* PromptPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptPanelController.swift; sourceTree = "<group>"; };
 		76F26E815173BCF54B26DCB9 /* Tamagotchai.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tamagotchai.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8FE7C40F97BE3426E3660AB3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingPanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -25,6 +29,7 @@
 			children = (
 				8FE7C40F97BE3426E3660AB3 /* ContentView.swift */,
 				36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */,
+				E3D5EED0D16B15ECCB8E4EDF /* PromptPanel */,
 			);
 			name = Sources;
 			path = tamagotchai/Sources;
@@ -53,6 +58,15 @@
 				76F26E815173BCF54B26DCB9 /* Tamagotchai.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E3D5EED0D16B15ECCB8E4EDF /* PromptPanel */ = {
+			isa = PBXGroup;
+			children = (
+				D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */,
+				6D449322E10E6BB23C918E50 /* PromptPanelController.swift */,
+			);
+			path = PromptPanel;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -164,6 +178,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */,
+				DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */,
+				099956513258275C888D9C17 /* PromptPanelController.swift in Sources */,
 				82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -180,6 +196,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Tamagotchai;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -317,6 +334,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Tamagotchai;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
