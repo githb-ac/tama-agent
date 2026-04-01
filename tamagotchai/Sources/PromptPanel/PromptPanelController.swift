@@ -51,8 +51,11 @@ final class PromptPanelController {
                 self?.handleSubmit(text)
             }
             newPanel.onTextChanged = { [weak newPanel] text in
-                let state: MascotState = text.isEmpty ? .idle : .typing
-                newPanel?.mascot.setState(state)
+                if text.isEmpty {
+                    newPanel?.mascot.setState(.idle)
+                } else {
+                    newPanel?.mascot.notifyKeystroke()
+                }
             }
             panel = newPanel
         }
@@ -74,6 +77,14 @@ final class PromptPanelController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.panel?.mascot.setState(.responding)
             self?.panel?.showResponse(response)
+
+            // After response is shown, settle back to idle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
+                guard let self,
+                      panel?.mascot.currentState == .responding
+                else { return }
+                panel?.mascot.setState(.idle)
+            }
         }
     }
 
