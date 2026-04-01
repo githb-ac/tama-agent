@@ -74,17 +74,16 @@ final class PromptPanelController {
             + "\n\nEnd of response. Scroll up to see more."
 
         // Simulate a brief wait, then show response
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.panel?.mascot.setState(.responding)
-            self?.panel?.showResponse(response)
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.5))
+            guard let self else { return }
+            panel?.mascot.setState(.responding)
+            panel?.showResponse(response)
 
             // After response is shown, settle back to idle
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
-                guard let self,
-                      panel?.mascot.currentState == .responding
-                else { return }
-                panel?.mascot.setState(.idle)
-            }
+            try? await Task.sleep(for: .seconds(4.0))
+            guard panel?.mascot.currentState == .responding else { return }
+            panel?.mascot.setState(.idle)
         }
     }
 

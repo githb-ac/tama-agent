@@ -92,8 +92,10 @@ final class MascotView {
 
         // Reset the pause timer — if no keystroke for 1.2s, ease back to idle
         typingIdleTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
-            guard let self, currentState == .typing else { return }
-            setState(.idle)
+            MainActor.assumeIsolated {
+                guard let self, self.currentState == .typing else { return }
+                self.setState(.idle)
+            }
         }
     }
 
@@ -107,16 +109,17 @@ final class MascotView {
     /// Idle isn't truly static — periodically flash a micro-smile to feel alive.
     private func startIdleBreathing() {
         idleBreathTimer = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { [weak self] _ in
-            guard let self, currentState == .idle else {
-                self?.idleBreathTimer?.invalidate()
-                self?.idleBreathTimer = nil
-                return
-            }
-            // Brief happy flash
-            riveViewModel.setInput("isHappy", value: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                guard let self, currentState == .idle else { return }
-                riveViewModel.setInput("isHappy", value: false)
+            MainActor.assumeIsolated {
+                guard let self, self.currentState == .idle else {
+                    self?.idleBreathTimer?.invalidate()
+                    self?.idleBreathTimer = nil
+                    return
+                }
+                // Brief happy flash
+                self.riveViewModel.setInput("isHappy", value: true)
+                self.scheduleRevert(delay: .seconds(0.6), expectedState: .idle) {
+                    $0.riveViewModel.setInput("isHappy", value: false)
+                }
             }
         }
     }
@@ -128,13 +131,15 @@ final class MascotView {
         applyTypingToggle()
 
         cycleTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            guard let self, currentState == .typing else {
-                self?.cycleTimer?.invalidate()
-                self?.cycleTimer = nil
-                return
+            MainActor.assumeIsolated {
+                guard let self, self.currentState == .typing else {
+                    self?.cycleTimer?.invalidate()
+                    self?.cycleTimer = nil
+                    return
+                }
+                self.cycleToggle.toggle()
+                self.applyTypingToggle()
             }
-            cycleToggle.toggle()
-            applyTypingToggle()
         }
     }
 
@@ -151,16 +156,17 @@ final class MascotView {
         riveViewModel.setInput("isSad", value: true)
 
         cycleTimer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: true) { [weak self] _ in
-            guard let self, currentState == .waiting else {
-                self?.cycleTimer?.invalidate()
-                self?.cycleTimer = nil
-                return
-            }
-            // Brief nervous glance — drop sad, then restore
-            riveViewModel.setInput("isSad", value: false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-                guard let self, currentState == .waiting else { return }
-                riveViewModel.setInput("isSad", value: true)
+            MainActor.assumeIsolated {
+                guard let self, self.currentState == .waiting else {
+                    self?.cycleTimer?.invalidate()
+                    self?.cycleTimer = nil
+                    return
+                }
+                // Brief nervous glance — drop sad, then restore
+                self.riveViewModel.setInput("isSad", value: false)
+                self.scheduleRevert(delay: .seconds(0.4), expectedState: .waiting) {
+                    $0.riveViewModel.setInput("isSad", value: true)
+                }
             }
         }
     }
@@ -173,17 +179,34 @@ final class MascotView {
         riveViewModel.setInput("isHappy", value: true)
 
         cycleTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            guard let self, currentState == .responding else {
-                self?.cycleTimer?.invalidate()
-                self?.cycleTimer = nil
-                return
+            MainActor.assumeIsolated {
+                guard let self, self.currentState == .responding else {
+                    self?.cycleTimer?.invalidate()
+                    self?.cycleTimer = nil
+                    return
+                }
+                // Brief neutral dip
+                self.riveViewModel.setInput("isHappy", value: false)
+                self.scheduleRevert(delay: .seconds(0.5), expectedState: .responding) {
+                    $0.riveViewModel.setInput("isHappy", value: true)
+                }
             }
-            // Brief neutral dip
-            riveViewModel.setInput("isHappy", value: false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self, currentState == .responding else { return }
-                riveViewModel.setInput("isHappy", value: true)
-            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    /// Schedules a delayed revert action, only executing if the mascot is still
+    /// in the expected state when the delay elapses.
+    private func scheduleRevert(
+        delay: Duration,
+        expectedState: MascotState,
+        action: @escaping (MascotView) -> Void
+    ) {
+        Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard let self, currentState == expectedState else { return }
+            action(self)
         }
     }
 

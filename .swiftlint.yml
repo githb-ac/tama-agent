@@ -21,8 +21,6 @@ opt_in_rules:
   - multiline_parameters
   - operator_usage_whitespace
   - overridden_super_call
-  - private_action
-  - private_outlet
   - redundant_nil_coalescing
   - sorted_first_last
   - vertical_parameter_alignment_on_call

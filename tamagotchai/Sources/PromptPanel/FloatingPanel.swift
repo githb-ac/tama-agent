@@ -261,13 +261,19 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     func showResponse(_ text: String) {
         responseTextView.string = text
 
-        // Calculate the natural text height
-        responseTextView.layoutManager?.ensureLayout(
-            for: responseTextView.textContainer!
-        )
-        let textHeight = responseTextView.layoutManager?.usedRect(
-            for: responseTextView.textContainer!
-        ).height ?? 100
+        // Calculate the natural text height using TextKit 2
+        let textHeight: CGFloat
+        if let textLayoutManager = responseTextView.textLayoutManager,
+           let textContentManager = textLayoutManager.textContentManager
+        {
+            textLayoutManager.ensureLayout(
+                for: textContentManager.documentRange
+            )
+            let usedHeight = textLayoutManager.usageBoundsForTextContainer.height
+            textHeight = usedHeight > 0 ? usedHeight : 100
+        } else {
+            textHeight = 100
+        }
 
         // Add text container inset
         let totalTextHeight = textHeight
@@ -309,8 +315,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             context.allowsImplicitAnimation = true
             self.responseHeightConstraint?.animator().constant = targetHeight
             self.animator().setFrame(newFrame, display: true)
-        } completionHandler: { [weak self] in
-            self?.positionMascotOverSpacer()
+        } completionHandler: {
+            MainActor.assumeIsolated { [weak self] in
+                self?.positionMascotOverSpacer()
+            }
         }
 
         responseTextView.scrollToBeginningOfDocument(nil)
