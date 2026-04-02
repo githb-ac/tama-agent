@@ -11,7 +11,10 @@ final class PromptPanelController {
     private var panel: FloatingPanel?
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
-    private var conversationHistory: [[String: String]] = []
+    private var conversationHistory: [[String: Any]] = []
+    private lazy var agentLoop = AgentLoop(
+        workingDirectory: FileManager.default.homeDirectoryForCurrentUser.path
+    )
 
     // MARK: - Public
 
@@ -72,27 +75,86 @@ final class PromptPanelController {
 
         guard ClaudeService.shared.isLoggedIn else {
             panel?.mascot.setState(.idle)
-            panel?.showResponse("Not logged in to Claude. Use the menu bar → Login to Claude.")
+            panel?.showResponse(
+                "Not logged in to Claude. Use the menu bar → Login to Claude."
+            )
             return
         }
 
         conversationHistory.append(["role": "user", "content": text])
 
-        let stream = ClaudeService.shared.send(messages: conversationHistory)
+        // Bridge AgentLoop events into an AsyncThrowingStream for the panel
+        let (stream, continuation) = AsyncThrowingStream.makeStream(
+            of: String.self
+        )
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            do {
+                let updatedHistory = try await agentLoop.run(
+                    messages: conversationHistory,
+                    systemPrompt: agentSystemPrompt,
+                    onEvent: { [weak self] event in
+                        switch event {
+                        case let .textDelta(delta):
+                            // Hide tool indicator once text resumes after a tool
+                            DispatchQueue.main.async {
+                                self?.panel?.hideToolIndicator()
+                            }
+                            continuation.yield(delta)
+                        case let .toolStart(name, _):
+                            // Insert a line break so text before the tool
+                            // doesn't merge with text after it
+                            continuation.yield("\n\n")
+                            DispatchQueue.main.async {
+                                self?.panel?.showToolIndicator(name: name)
+                            }
+                        case .toolResult:
+                            break
+                        case .turnComplete:
+                            DispatchQueue.main.async {
+                                self?.panel?.hideToolIndicator()
+                            }
+                            continuation.finish()
+                        case let .error(msg):
+                            DispatchQueue.main.async {
+                                self?.panel?.hideToolIndicator()
+                            }
+                            continuation.yield("\n⚠️ \(msg)\n")
+                        }
+                    }
+                )
+                conversationHistory = updatedHistory
+            } catch {
+                continuation.finish(throwing: error)
+            }
+        }
 
         Task { @MainActor [weak self] in
             guard let self, let panel else { return }
 
             do {
-                let responseText = try await panel.streamResponse(stream)
-                conversationHistory.append(["role": "assistant", "content": responseText])
+                _ = try await panel.streamResponse(stream)
             } catch {
-                // Remove the user message if the request failed
                 conversationHistory.removeLast()
-                panel.showResponse("Error: \(error.localizedDescription)")
+                panel.showResponse(
+                    "Error: \(error.localizedDescription)"
+                )
                 panel.mascot.setState(.idle)
             }
         }
+    }
+
+    private var agentSystemPrompt: String {
+        let cwd = FileManager.default
+            .homeDirectoryForCurrentUser.path
+        return """
+        you have access to tools for working with the user's computer. \
+        you can run shell commands (bash), read/write/edit files, \
+        search code (grep/find), list directories (ls), and fetch web \
+        pages. working directory: \(cwd)
+        """
     }
 
     // MARK: - Carbon Hot Key

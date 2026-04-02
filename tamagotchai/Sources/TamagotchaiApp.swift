@@ -14,19 +14,19 @@ struct TamagotchaiApp: App {
             }
             .keyboardShortcut("p", modifiers: [.command])
 
+            Button("Permissions…") {
+                PermissionsWindowController.show()
+            }
+
             Divider()
 
             if isLoggedIn {
-                Button("Logout from Claude") {
-                    ClaudeService.shared.logout()
-                    isLoggedIn = false
+                Button("Claude Account…") {
+                    LoginWindowController.show(isLoggedIn: true) { isLoggedIn = $0 }
                 }
             } else {
-                Button("Login to Claude") {
-                    ClaudeOAuth.startLogin()
-                }
-                Button("Paste Login Code…") {
-                    promptForLoginCode()
+                Button("Login to Claude…") {
+                    LoginWindowController.show(isLoggedIn: false) { isLoggedIn = $0 }
                 }
             }
 
@@ -36,39 +36,6 @@ struct TamagotchaiApp: App {
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: [.command])
-        }
-    }
-
-    private func promptForLoginCode() {
-        let alert = NSAlert()
-        alert.messageText = "Paste Login Code"
-        alert.informativeText = "Paste the code from your browser (format: code#state):"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Login")
-        alert.addButton(withTitle: "Cancel")
-
-        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
-        input.placeholderString = "code#state"
-        alert.accessoryView = input
-
-        let response = alert.runModal()
-        guard response == .alertFirstButtonReturn else { return }
-
-        let rawCode = input.stringValue
-        guard !rawCode.isEmpty else { return }
-
-        Task {
-            do {
-                let credentials = try await ClaudeOAuth.completeLogin(rawCode: rawCode)
-                ClaudeService.shared.setCredentials(credentials)
-                isLoggedIn = true
-            } catch {
-                let errorAlert = NSAlert()
-                errorAlert.messageText = "Login Failed"
-                errorAlert.informativeText = error.localizedDescription
-                errorAlert.alertStyle = .warning
-                errorAlert.runModal()
-            }
         }
     }
 }

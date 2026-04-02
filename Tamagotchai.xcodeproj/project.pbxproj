@@ -8,34 +8,64 @@
 
 /* Begin PBXBuildFile section */
 		099956513258275C888D9C17 /* PromptPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D449322E10E6BB23C918E50 /* PromptPanelController.swift */; };
-		1A2B3C4D5E6F7A8B9C0D1E2F /* ClaudeCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1B2C3D4E5F6A7B8C9D0E1F /* ClaudeCredentials.swift */; };
-		2B3C4D5E6F7A8B9C0D1E2F3A /* ClaudeOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2C3D4E5F6A7B8C9D0E1F2A /* ClaudeOAuth.swift */; };
-		3C4D5E6F7A8B9C0D1E2F3A4B /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3D4E5F6A7B8C9D0E1F2A3B /* ClaudeService.swift */; };
+		0D0119FAD42DE581E87D65C7 /* AgentLoop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3B330A8C52FA34054BDE60 /* AgentLoop.swift */; };
+		398C599C51D54FDA7B15A8E8 /* FindTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B57A17D8297CE0C2848871 /* FindTool.swift */; };
+		4291668781FF244B5A7EE081 /* GrepTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB467A37B99F8825954718A9 /* GrepTool.swift */; };
 		58A6EC99AA0D4939ED8985C9 /* avatar_pack.riv in Resources */ = {isa = PBXBuildFile; fileRef = 46B666BC978765216D62FF84 /* avatar_pack.riv */; };
+		5BFE8EA7252582A6DE513D3D /* WebFetchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AAE3B60D199496B2AD15707 /* WebFetchTool.swift */; };
+		5E1228AF1C9F5A6C7B512653 /* AgentTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240A2BC5BE91EC59111BB7FC /* AgentTool.swift */; };
+		6B4AE21C4C60C7A3879FFAC1 /* WriteTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C23F76A77C1AEDFCD0BC3D3 /* WriteTool.swift */; };
 		705BF951EDBA3B84995D11FD /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 79428049BDEB372B1D6B128C /* RiveRuntime */; };
 		82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */; };
 		9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE7C40F97BE3426E3660AB3 /* ContentView.swift */; };
 		92232CF2F234B831875BD6C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */; };
+		AF8519C7A25F8C02BCB1A68E /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4BC561B4564DD9CA624CF /* ClaudeService.swift */; };
 		AFB8A474EC6602B09505E1F1 /* MascotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B74160BBE6B75D3AA754C2 /* MascotView.swift */; };
+		B46B0E4F8F6EACB819134DEA /* LsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6FEB4F6520174E8D9A991F /* LsTool.swift */; };
+		BD02EB2A0950C8C2F57A56E9 /* ClaudeOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54066C4888E025A62763B481 /* ClaudeOAuth.swift */; };
+		C047E42DD4B026F582DFFDF6 /* ReadTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BCE6A076A69299A2B92B673 /* ReadTool.swift */; };
 		C10EA6F9E96084609564E571 /* MascotState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3CD99D66F6E1E5354B61F26 /* MascotState.swift */; };
-		DD5E6F7A8B9C0D1E2F3A4B5C /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6F7A8B9C0D1E2F3A4B5C6D /* MarkdownRenderer.swift */; };
 		DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */; };
+		E0368A9A22612832A2ECD645 /* EditTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F1811FA8B877563B30475E /* EditTool.swift */; };
+		E53464559DF16636B3AA3F97 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */; };
+		E566577EF74445A44CDEC685 /* BashTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A72ADD77BE83A08A891E51 /* BashTool.swift */; };
+		EDEFE417BF656F06FE8A6AE8 /* ClaudeCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025B3C45281DE97D0FCB7955 /* ClaudeCredentials.swift */; };
+		A1B2C3D4E5F60001BBBB0001 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002BBBB0001 /* LoginView.swift */; };
+		A1B2C3D4E5F60001BBBB0002 /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002BBBB0002 /* LoginWindowController.swift */; };
+		A1B2C3D4E5F60001AAAA0001 /* PermissionsChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002AAAA0001 /* PermissionsChecker.swift */; };
+		A1B2C3D4E5F60001AAAA0002 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002AAAA0002 /* PermissionsView.swift */; };
+		A1B2C3D4E5F60001AAAA0003 /* PermissionsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002AAAA0003 /* PermissionsWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		025B3C45281DE97D0FCB7955 /* ClaudeCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCredentials.swift; sourceTree = "<group>"; };
+		1C23F76A77C1AEDFCD0BC3D3 /* WriteTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteTool.swift; sourceTree = "<group>"; };
+		1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
+		240A2BC5BE91EC59111BB7FC /* AgentTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTool.swift; sourceTree = "<group>"; };
 		36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TamagotchaiApp.swift; sourceTree = "<group>"; };
 		46B666BC978765216D62FF84 /* avatar_pack.riv */ = {isa = PBXFileReference; path = avatar_pack.riv; sourceTree = "<group>"; };
-		AA1B2C3D4E5F6A7B8C9D0E1F /* ClaudeCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCredentials.swift; sourceTree = "<group>"; };
-		BB2C3D4E5F6A7B8C9D0E1F2A /* ClaudeOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeOAuth.swift; sourceTree = "<group>"; };
-		CC3D4E5F6A7B8C9D0E1F2A3B /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
+		4AAE3B60D199496B2AD15707 /* WebFetchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFetchTool.swift; sourceTree = "<group>"; };
 		52B74160BBE6B75D3AA754C2 /* MascotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotView.swift; sourceTree = "<group>"; };
+		54066C4888E025A62763B481 /* ClaudeOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeOAuth.swift; sourceTree = "<group>"; };
+		57F4BC561B4564DD9CA624CF /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
 		6D449322E10E6BB23C918E50 /* PromptPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptPanelController.swift; sourceTree = "<group>"; };
+		72A72ADD77BE83A08A891E51 /* BashTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashTool.swift; sourceTree = "<group>"; };
 		76F26E815173BCF54B26DCB9 /* Tamagotchai.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tamagotchai.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F3B330A8C52FA34054BDE60 /* AgentLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLoop.swift; sourceTree = "<group>"; };
 		8FE7C40F97BE3426E3660AB3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		9BCE6A076A69299A2B92B673 /* ReadTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadTool.swift; sourceTree = "<group>"; };
 		A3CD99D66F6E1E5354B61F26 /* MascotState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotState.swift; sourceTree = "<group>"; };
 		A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B9F1811FA8B877563B30475E /* EditTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTool.swift; sourceTree = "<group>"; };
+		CB467A37B99F8825954718A9 /* GrepTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrepTool.swift; sourceTree = "<group>"; };
 		D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingPanel.swift; sourceTree = "<group>"; };
-		EE6F7A8B9C0D1E2F3A4B5C6D /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
+		DC6FEB4F6520174E8D9A991F /* LsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LsTool.swift; sourceTree = "<group>"; };
+		E3B57A17D8297CE0C2848871 /* FindTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindTool.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60002BBBB0001 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60002BBBB0002 /* LoginWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginWindowController.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60002AAAA0001 /* PermissionsChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsChecker.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60002AAAA0002 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60002AAAA0003 /* PermissionsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,8 +85,10 @@
 			children = (
 				8FE7C40F97BE3426E3660AB3 /* ContentView.swift */,
 				36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */,
-				DD4E5F6A7B8C9D0E1F2A3B4C /* AI */,
+				C0A38FAB5D2E77DF1F9CCB07 /* AI */,
+				A1B2C3D4E5F60003BBBB0001 /* Login */,
 				E4175355A2B14F833EE08D6B /* Mascot */,
+				A1B2C3D4E5F60003AAAA0001 /* Permissions */,
 				E3D5EED0D16B15ECCB8E4EDF /* PromptPanel */,
 			);
 			name = Sources;
@@ -81,6 +113,18 @@
 			);
 			sourceTree = "<group>";
 		};
+		C0A38FAB5D2E77DF1F9CCB07 /* AI */ = {
+			isa = PBXGroup;
+			children = (
+				7F3B330A8C52FA34054BDE60 /* AgentLoop.swift */,
+				025B3C45281DE97D0FCB7955 /* ClaudeCredentials.swift */,
+				54066C4888E025A62763B481 /* ClaudeOAuth.swift */,
+				57F4BC561B4564DD9CA624CF /* ClaudeService.swift */,
+				D22CA65963034DD083BBDF10 /* Tools */,
+			);
+			path = AI;
+			sourceTree = "<group>";
+		};
 		CA376747D3CF061F081AFB18 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -89,21 +133,46 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		DD4E5F6A7B8C9D0E1F2A3B4C /* AI */ = {
+		D22CA65963034DD083BBDF10 /* Tools */ = {
 			isa = PBXGroup;
 			children = (
-				AA1B2C3D4E5F6A7B8C9D0E1F /* ClaudeCredentials.swift */,
-				BB2C3D4E5F6A7B8C9D0E1F2A /* ClaudeOAuth.swift */,
-				CC3D4E5F6A7B8C9D0E1F2A3B /* ClaudeService.swift */,
+				240A2BC5BE91EC59111BB7FC /* AgentTool.swift */,
+				72A72ADD77BE83A08A891E51 /* BashTool.swift */,
+				B9F1811FA8B877563B30475E /* EditTool.swift */,
+				E3B57A17D8297CE0C2848871 /* FindTool.swift */,
+				CB467A37B99F8825954718A9 /* GrepTool.swift */,
+				DC6FEB4F6520174E8D9A991F /* LsTool.swift */,
+				9BCE6A076A69299A2B92B673 /* ReadTool.swift */,
+				4AAE3B60D199496B2AD15707 /* WebFetchTool.swift */,
+				1C23F76A77C1AEDFCD0BC3D3 /* WriteTool.swift */,
 			);
-			path = AI;
+			path = Tools;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F60003BBBB0001 /* Login */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60002BBBB0001 /* LoginView.swift */,
+				A1B2C3D4E5F60002BBBB0002 /* LoginWindowController.swift */,
+			);
+			path = Login;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F60003AAAA0001 /* Permissions */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60002AAAA0001 /* PermissionsChecker.swift */,
+				A1B2C3D4E5F60002AAAA0002 /* PermissionsView.swift */,
+				A1B2C3D4E5F60002AAAA0003 /* PermissionsWindowController.swift */,
+			);
+			path = Permissions;
 			sourceTree = "<group>";
 		};
 		E3D5EED0D16B15ECCB8E4EDF /* PromptPanel */ = {
 			isa = PBXGroup;
 			children = (
 				D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */,
-				EE6F7A8B9C0D1E2F3A4B5C6D /* MarkdownRenderer.swift */,
+				1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */,
 				6D449322E10E6BB23C918E50 /* PromptPanelController.swift */,
 			);
 			path = PromptPanel;
@@ -241,16 +310,31 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5E6F7A8B9C0D1E2F /* ClaudeCredentials.swift in Sources */,
-				2B3C4D5E6F7A8B9C0D1E2F3A /* ClaudeOAuth.swift in Sources */,
-				3C4D5E6F7A8B9C0D1E2F3A4B /* ClaudeService.swift in Sources */,
+				0D0119FAD42DE581E87D65C7 /* AgentLoop.swift in Sources */,
+				5E1228AF1C9F5A6C7B512653 /* AgentTool.swift in Sources */,
+				E566577EF74445A44CDEC685 /* BashTool.swift in Sources */,
+				EDEFE417BF656F06FE8A6AE8 /* ClaudeCredentials.swift in Sources */,
+				BD02EB2A0950C8C2F57A56E9 /* ClaudeOAuth.swift in Sources */,
+				AF8519C7A25F8C02BCB1A68E /* ClaudeService.swift in Sources */,
 				9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */,
+				E0368A9A22612832A2ECD645 /* EditTool.swift in Sources */,
+				398C599C51D54FDA7B15A8E8 /* FindTool.swift in Sources */,
 				DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */,
-				DD5E6F7A8B9C0D1E2F3A4B5C /* MarkdownRenderer.swift in Sources */,
+				4291668781FF244B5A7EE081 /* GrepTool.swift in Sources */,
+				B46B0E4F8F6EACB819134DEA /* LsTool.swift in Sources */,
+				E53464559DF16636B3AA3F97 /* MarkdownRenderer.swift in Sources */,
 				C10EA6F9E96084609564E571 /* MascotState.swift in Sources */,
 				AFB8A474EC6602B09505E1F1 /* MascotView.swift in Sources */,
+				A1B2C3D4E5F60001BBBB0001 /* LoginView.swift in Sources */,
+				A1B2C3D4E5F60001BBBB0002 /* LoginWindowController.swift in Sources */,
+				A1B2C3D4E5F60001AAAA0001 /* PermissionsChecker.swift in Sources */,
+				A1B2C3D4E5F60001AAAA0002 /* PermissionsView.swift in Sources */,
+				A1B2C3D4E5F60001AAAA0003 /* PermissionsWindowController.swift in Sources */,
 				099956513258275C888D9C17 /* PromptPanelController.swift in Sources */,
+				C047E42DD4B026F582DFFDF6 /* ReadTool.swift in Sources */,
 				82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */,
+				5BFE8EA7252582A6DE513D3D /* WebFetchTool.swift in Sources */,
+				6B4AE21C4C60C7A3879FFAC1 /* WriteTool.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

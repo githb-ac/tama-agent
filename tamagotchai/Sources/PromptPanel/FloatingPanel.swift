@@ -1,5 +1,11 @@
 import AppKit
 import CoreVideo
+import os
+
+private let panelLogger = Logger(
+    subsystem: "com.unstablemind.tamagotchai",
+    category: "panel"
+)
 
 /// A borderless, floating NSPanel that mimics macOS Spotlight's window behavior.
 /// - Appears centered on the active screen
@@ -77,6 +83,14 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Once the panel reaches max height, it stays there for the session.
     private var reachedMaxHeight = false
+
+    /// Tool activity indicator shown during tool execution.
+    private lazy var toolIndicatorView: ToolIndicatorView = {
+        let v = ToolIndicatorView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        return v
+    }()
 
     /// Skeleton shimmer view shown while waiting for first token.
     private lazy var skeletonView: SkeletonView = {
@@ -302,6 +316,24 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             skeletonView.topAnchor.constraint(equalTo: responseScrollView.topAnchor, constant: 14),
             skeletonView.heightAnchor.constraint(equalToConstant: 60),
         ])
+
+        // Add tool activity indicator floating over the response area.
+        // Added to container (above backgroundView/mainStack) so it's always visible.
+        container.addSubview(toolIndicatorView)
+        NSLayoutConstraint.activate([
+            toolIndicatorView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
+            toolIndicatorView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+        ])
+    }
+
+    // MARK: - Tool Indicator
+
+    func showToolIndicator(name: String) {
+        toolIndicatorView.show(toolName: name)
+    }
+
+    func hideToolIndicator() {
+        toolIndicatorView.hide()
     }
 
     // MARK: - Dismiss on Escape
@@ -424,6 +456,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         displayedMarkdown = ""
         characterQueue = []
         streamFinished = false
+        typingFinished = false
         lastRenderLength = 0
         if !reachedMaxHeight { lastTargetHeight = 0 }
         lastFrameTime = 0
@@ -558,11 +591,23 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         // Stream ended — mark finished so typing timer knows to drain and stop
         rawMarkdown = pendingMarkdown
         streamFinished = true
+        let qEmpty = characterQueue.isEmpty
+        let tFinished = typingFinished
+        panelLogger.debug(
+            "streamFinished=true queueEmpty=\(qEmpty) receivedFirst=\(receivedFirst) typingFinished=\(tFinished)"
+        )
 
         // If we never received any text, clean up skeleton
         if !receivedFirst {
             skeletonView.stopAnimating()
             skeletonView.isHidden = true
+        }
+
+        // Safety: if the character queue already drained before streamFinished
+        // was set, the display link won't call finishTyping. Force it now.
+        if characterQueue.isEmpty, receivedFirst {
+            panelLogger.debug("Safety net: calling finishTyping from streamResponse")
+            finishTyping()
         }
 
         return pendingMarkdown
@@ -747,21 +792,41 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         }
     }
 
+    /// Whether finishTyping has already been called for the current response.
+    private var typingFinished = false
+
     /// Final render when all characters have been typed.
     private func finishTyping() {
+        let alreadyDone = typingFinished
+        panelLogger.debug("finishTyping called, typingFinished=\(alreadyDone)")
+        guard !typingFinished else { return }
+        typingFinished = true
+        panelLogger.debug("finishTyping executing — stopping cursor")
         stopDisplayLink()
         stopCursorBlink()
+        // Strip any cursor glyph that may have leaked into pendingMarkdown
+        let cleanMarkdown = pendingMarkdown
+            .replacingOccurrences(of: Self.streamingCursorGlyph, with: "")
+        pendingMarkdown = cleanMarkdown
+        rawMarkdown = cleanMarkdown
         // Commit assistant response into conversation attributed
-        let rendered = MarkdownRenderer.render(pendingMarkdown)
+        let rendered = MarkdownRenderer.render(cleanMarkdown)
         conversationAttributed.append(rendered)
         // Update base length BEFORE render so the tail replace doesn't wipe it
         conversationBaseLength = conversationAttributed.length
         displayedMarkdown = ""
-        renderDisplayedMarkdown()
+        // Force text storage to exactly match conversationAttributed (no tail)
+        if let storage = responseTextView.textStorage {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            storage.beginEditing()
+            storage.setAttributedString(conversationAttributed)
+            storage.endEditing()
+            CATransaction.commit()
+        }
         updateHeight(animated: true)
         mascot.setState(.idle)
-        // Clear input and refocus for follow-up
-        inputField.stringValue = ""
+        // Refocus input for follow-up, but preserve any text typed during the response
         makeFirstResponder(inputField)
     }
 
@@ -772,10 +837,20 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         guard let storage = responseTextView.textStorage else { return }
 
         // Append cursor glyph during streaming if visible
-        let textToRender = if !streamFinished, cursorVisible {
+        let showCursor = !streamFinished && cursorVisible
+        let textToRender = if showCursor {
             displayedMarkdown + Self.streamingCursorGlyph
         } else {
             displayedMarkdown
+        }
+        if showCursor || typingFinished {
+            let sf = streamFinished
+            let cv = cursorVisible
+            let tf = typingFinished
+            let dmLen = displayedMarkdown.count
+            panelLogger.debug(
+                "render: showCursor=\(showCursor) streamFinished=\(sf) cursorVisible=\(cv) typingFinished=\(tf) displayedLen=\(dmLen)"
+            )
         }
 
         let rendered = MarkdownRenderer.render(textToRender)
@@ -913,6 +988,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         conversationBaseLength = 0
         characterQueue = []
         streamFinished = false
+        typingFinished = false
         lastRenderLength = 0
         lastTargetHeight = 0
         reachedMaxHeight = false
@@ -923,6 +999,8 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         lastFullRenderTime = 0
         skeletonView.stopAnimating()
         skeletonView.isHidden = true
+        toolIndicatorView.isHidden = true
+        toolIndicatorView.alphaValue = 0
         responseTextView.textStorage?.setAttributedString(NSAttributedString())
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true
@@ -1106,5 +1184,102 @@ private final class SkeletonView: NSView {
 
     func stopAnimating() {
         shimmerLayer.removeAnimation(forKey: "shimmer")
+    }
+}
+
+// MARK: - Tool activity indicator
+
+/// A small pill that shows which tool is currently running, with a spinning progress indicator.
+private final class ToolIndicatorView: NSView {
+    private let spinner: NSProgressIndicator = {
+        let p = NSProgressIndicator()
+        p.style = .spinning
+        p.controlSize = .small
+        p.isIndeterminate = true
+        p.translatesAutoresizingMaskIntoConstraints = false
+        return p
+    }()
+
+    private let label: NSTextField = {
+        let t = NSTextField(labelWithString: "")
+        t.font = .systemFont(ofSize: 11, weight: .medium)
+        t.textColor = .white
+        t.lineBreakMode = .byTruncatingTail
+        t.maximumNumberOfLines = 1
+        t.translatesAutoresizingMaskIntoConstraints = false
+        return t
+    }()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor(white: 0.0, alpha: 0.55).cgColor
+        layer?.cornerRadius = 12
+
+        let stack = NSStackView(views: [spinner, label])
+        stack.orientation = .horizontal
+        stack.spacing = 6
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 12)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            label.widthAnchor.constraint(equalToConstant: 100),
+
+            spinner.widthAnchor.constraint(equalToConstant: 16),
+            spinner.heightAnchor.constraint(equalToConstant: 16),
+        ])
+
+        alphaValue = 0
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    static func displayName(for toolName: String) -> String {
+        switch toolName {
+        case "bash": "Running bash…"
+        case "read": "Reading file…"
+        case "write": "Writing file…"
+        case "edit": "Editing file…"
+        case "ls": "Listing dir…"
+        case "find": "Finding files…"
+        case "grep": "Searching…"
+        case "web_fetch": "Fetching URL…"
+        case "web_search": "Searching web…"
+        default: "Working…"
+        }
+    }
+
+    func show(toolName: String) {
+        let displayText = Self.displayName(for: toolName)
+        spinner.startAnimation(nil)
+        isHidden = false
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            ctx.allowsImplicitAnimation = true
+            self.label.stringValue = displayText
+            self.animator().alphaValue = 1
+        }
+    }
+
+    func hide() {
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            self.animator().alphaValue = 0
+        } completionHandler: {
+            MainActor.assumeIsolated { [weak self] in
+                self?.isHidden = true
+                self?.spinner.stopAnimation(nil)
+            }
+        }
     }
 }
