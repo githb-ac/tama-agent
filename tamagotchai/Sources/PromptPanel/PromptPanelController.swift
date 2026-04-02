@@ -73,6 +73,9 @@ final class PromptPanelController {
     private func handleSubmit(_ text: String) {
         panel?.mascot.setState(.waiting)
 
+        // Capture and clear input immediately so user can start typing next prompt
+        let userText = panel?.consumeInput() ?? text
+
         guard ClaudeService.shared.isLoggedIn else {
             panel?.mascot.setState(.idle)
             panel?.showResponse(
@@ -81,7 +84,7 @@ final class PromptPanelController {
             return
         }
 
-        conversationHistory.append(["role": "user", "content": text])
+        conversationHistory.append(["role": "user", "content": userText])
 
         // Bridge AgentLoop events into an AsyncThrowingStream for the panel
         let (stream, continuation) = AsyncThrowingStream.makeStream(
@@ -135,7 +138,7 @@ final class PromptPanelController {
             guard let self, let panel else { return }
 
             do {
-                _ = try await panel.streamResponse(stream)
+                _ = try await panel.streamResponse(stream, userText: userText)
             } catch {
                 conversationHistory.removeLast()
                 panel.showResponse(

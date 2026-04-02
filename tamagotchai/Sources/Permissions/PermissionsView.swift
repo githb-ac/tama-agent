@@ -9,14 +9,13 @@ struct PermissionsView: View {
     var body: some View {
         VStack(spacing: 0) {
             Text("Permissions")
-                .font(.headline)
-                .padding(.top, 6)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.top, 10)
                 .padding(.bottom, 8)
 
             VStack(spacing: 1) {
                 permissionRow(
-                    icon: accessibilityGranted ? "checkmark.shield.fill" : "lock.shield",
-                    iconColor: accessibilityGranted ? .green : .orange,
                     title: "Accessibility",
                     description: "Required for the global hotkey (⌥Space).",
                     granted: accessibilityGranted,
@@ -29,11 +28,9 @@ struct PermissionsView: View {
                     }
                 )
 
-                Divider().padding(.horizontal, 12)
+                Divider().opacity(0.3).padding(.horizontal, 14)
 
                 permissionRow(
-                    icon: fullDiskAccessGranted ? "checkmark.shield.fill" : "lock.shield",
-                    iconColor: fullDiskAccessGranted ? .green : .orange,
                     title: "Full Disk Access",
                     description: fullDiskAccessGranted
                         ? "Required to read, write, and edit files."
@@ -46,23 +43,22 @@ struct PermissionsView: View {
                 )
             }
 
-            Divider()
+            Divider().opacity(0.3)
                 .padding(.top, 8)
 
-            HStack {
-                Button("Refresh") {
+            HStack(spacing: 8) {
+                GlassButton("Refresh") {
                     refreshStatuses()
                 }
                 Spacer()
-                Button("Done") {
+                GlassButton("Done", isPrimary: true) {
                     PermissionsWindowController.dismiss()
                 }
-                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 10)
         }
-        .frame(width: 380)
+        .frame(width: 340)
         .onAppear { refreshStatuses() }
     }
 
@@ -72,36 +68,36 @@ struct PermissionsView: View {
     }
 
     private func permissionRow(
-        icon: String,
-        iconColor: Color,
         title: String,
         description: String,
         granted: Bool,
         action: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(iconColor)
-                .frame(width: 28)
-
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.body).fontWeight(.medium)
-                Text(description).font(.caption).foregroundColor(.secondary)
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                Text(description)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.45))
             }
 
             Spacer()
 
             if granted {
-                Label("Granted", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.green)
+                Text("Granted")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.green.opacity(0.9))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.green.opacity(0.15))
+                    .clipShape(Capsule())
             } else {
-                Button("Open Settings") { action() }
-                    .controlSize(.small)
+                GlassButton("Open Settings") { action() }
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 8)
     }
 }

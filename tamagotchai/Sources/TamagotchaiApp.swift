@@ -8,11 +8,11 @@ struct TamagotchaiApp: App {
 
     var body: some Scene {
         // Menu bar presence — the app lives in the menu bar
-        MenuBarExtra("Tamagotchai", systemImage: "sparkles") {
-            Button("Show Prompt ⌥Space") {
+        MenuBarExtra("Tamagotchai", systemImage: "pawprint.fill") {
+            Button("Open Tamagotchai ⌥Space") {
                 PromptPanelController.shared.toggle()
             }
-            .keyboardShortcut("p", modifiers: [.command])
+            .keyboardShortcut(.space, modifiers: [.option])
 
             Button("Permissions…") {
                 PermissionsWindowController.show()

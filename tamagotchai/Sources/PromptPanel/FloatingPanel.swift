@@ -429,17 +429,22 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         responseTextView.scrollToBeginningOfDocument(nil)
         positionMascotOverSpacer()
         invalidateShadow()
-        inputField.stringValue = ""
         makeFirstResponder(inputField)
+    }
+
+    /// Captures the current input text, clears the field, and returns what was typed.
+    /// Call this immediately on submit so the user can start typing their next prompt.
+    func consumeInput() -> String {
+        let text = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        inputField.stringValue = ""
+        return text
     }
 
     /// Streams text deltas into the response area with smooth character-by-character typing.
     /// Returns the full assistant response text for conversation history tracking.
     @discardableResult
-    func streamResponse(_ stream: AsyncThrowingStream<String, Error>) async throws -> String {
+    func streamResponse(_ stream: AsyncThrowingStream<String, Error>, userText: String = "") async throws -> String {
         // Build user bubble attributed string before appending
-        let userText = inputField.stringValue
-            .trimmingCharacters(in: .whitespacesAndNewlines)
         let userBubble = userText.isEmpty ? nil : makeUserBubble(userText)
 
         // Re-enable auto-scroll for new message
@@ -525,9 +530,6 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
         CATransaction.commit()
         NSAnimationContext.endGrouping()
-
-        // Clear input immediately
-        inputField.stringValue = ""
 
         // Show skeleton and animate panel expand (skip when already at max)
         if !reachedMaxHeight {
@@ -826,8 +828,18 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         }
         updateHeight(animated: true)
         mascot.setState(.idle)
-        // Refocus input for follow-up, but preserve any text typed during the response
-        makeFirstResponder(inputField)
+        // Refocus input for follow-up, preserving any text typed during the response
+        let existingText = inputField.stringValue
+        if existingText.isEmpty {
+            makeFirstResponder(inputField)
+        } else {
+            // Avoid makeFirstResponder which resets the field editor and selects all.
+            // The input is already first responder from the initial submit, so just
+            // ensure the cursor is at the end with no selection.
+            if let editor = inputField.currentEditor() {
+                editor.selectedRange = NSRange(location: existingText.count, length: 0)
+            }
+        }
     }
 
     /// Re-renders the current displayedMarkdown into the text view,
@@ -1121,7 +1133,7 @@ private final class SkeletonView: NSView {
         let widthFractions: [CGFloat] = [0.65, 0.85, 0.45]
         return widthFractions.map { _ in
             let layer = CALayer()
-            layer.backgroundColor = NSColor(white: 0.25, alpha: 0.6).cgColor
+            layer.backgroundColor = NSColor(white: 1.0, alpha: 0.08).cgColor
             layer.cornerRadius = 6
             return layer
         }
@@ -1131,7 +1143,7 @@ private final class SkeletonView: NSView {
         let gradient = CAGradientLayer()
         gradient.colors = [
             NSColor.clear.cgColor,
-            NSColor(white: 1.0, alpha: 0.15).cgColor,
+            NSColor(white: 1.0, alpha: 0.12).cgColor,
             NSColor.clear.cgColor,
         ]
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
@@ -1189,8 +1201,20 @@ private final class SkeletonView: NSView {
 
 // MARK: - Tool activity indicator
 
-/// A small pill that shows which tool is currently running, with a spinning progress indicator.
+/// A small glassmorphism pill that shows which tool is currently running.
 private final class ToolIndicatorView: NSView {
+    private let pillRadius: CGFloat = 12
+
+    private let vibrancy: NSVisualEffectView = {
+        let v = NSVisualEffectView()
+        v.material = .hudWindow
+        v.state = .active
+        v.blendingMode = .withinWindow
+        v.wantsLayer = true
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
+
     private let spinner: NSProgressIndicator = {
         let p = NSProgressIndicator()
         p.style = .spinning
@@ -1203,7 +1227,7 @@ private final class ToolIndicatorView: NSView {
     private let label: NSTextField = {
         let t = NSTextField(labelWithString: "")
         t.font = .systemFont(ofSize: 11, weight: .medium)
-        t.textColor = .white
+        t.textColor = NSColor.white.withAlphaComponent(0.85)
         t.lineBreakMode = .byTruncatingTail
         t.maximumNumberOfLines = 1
         t.translatesAutoresizingMaskIntoConstraints = false
@@ -1213,21 +1237,31 @@ private final class ToolIndicatorView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.0, alpha: 0.55).cgColor
-        layer?.cornerRadius = 12
+        layer?.cornerRadius = pillRadius
+        layer?.masksToBounds = true
+        layer?.borderWidth = 0.5
+        layer?.borderColor = NSColor.white.withAlphaComponent(0.15).cgColor
+
+        addSubview(vibrancy)
+        NSLayoutConstraint.activate([
+            vibrancy.leadingAnchor.constraint(equalTo: leadingAnchor),
+            vibrancy.trailingAnchor.constraint(equalTo: trailingAnchor),
+            vibrancy.topAnchor.constraint(equalTo: topAnchor),
+            vibrancy.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
 
         let stack = NSStackView(views: [spinner, label])
         stack.orientation = .horizontal
         stack.spacing = 6
-        stack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 12)
+        stack.edgeInsets = NSEdgeInsets(top: 5, left: 10, bottom: 5, right: 12)
         stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
+        vibrancy.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: vibrancy.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: vibrancy.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: vibrancy.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: vibrancy.bottomAnchor),
 
             label.widthAnchor.constraint(equalToConstant: 100),
 

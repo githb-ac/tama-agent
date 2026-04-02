@@ -11,8 +11,9 @@ struct LoginView: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(isLoggedIn ? "Claude Account" : "Login to Claude")
-                .font(.headline)
-                .padding(.top, 6)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.top, 10)
                 .padding(.bottom, 8)
 
             if isLoggedIn {
@@ -21,98 +22,101 @@ struct LoginView: View {
                 loggedOutContent
             }
 
-            Divider()
+            Divider().opacity(0.3)
                 .padding(.top, 8)
 
-            HStack {
+            HStack(spacing: 8) {
                 if !isLoggedIn {
-                    Button("Open Browser Login") {
+                    GlassButton("Open Browser Login") {
                         ClaudeOAuth.startLogin()
                     }
                 }
                 Spacer()
-                Button("Done") {
+                GlassButton("Done", isPrimary: true) {
                     LoginWindowController.dismiss()
                 }
-                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 10)
         }
-        .frame(width: 380)
+        .frame(width: 340)
     }
 
     private var loggedInContent: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.green)
-                    .frame(width: 28)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Connected").font(.body).fontWeight(.medium)
-                    Text("You are logged in to Claude.").font(.caption).foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Button("Logout") {
-                    ClaudeService.shared.logout()
-                    onLoginStateChanged(false)
-                    LoginWindowController.dismiss()
-                }
-                .controlSize(.small)
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Connected")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                Text("You are logged in to Claude.")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.45))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+
+            Spacer()
+
+            GlassButton("Logout") {
+                ClaudeService.shared.logout()
+                onLoginStateChanged(false)
+                LoginWindowController.dismiss()
+            }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
     private var loggedOutContent: some View {
         VStack(spacing: 8) {
             HStack(spacing: 10) {
-                Image(systemName: "person.crop.circle.badge.questionmark")
-                    .font(.title2)
-                    .foregroundColor(.orange)
-                    .frame(width: 28)
-
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Not Connected").font(.body).fontWeight(.medium)
-                    Text("Login to use Claude AI features.").font(.caption).foregroundColor(.secondary)
+                    Text("Not Connected")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                    Text("Login to use Claude AI features.")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.45))
                 }
-
                 Spacer()
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 8)
 
-            Divider().padding(.horizontal, 12)
+            Divider().opacity(0.3).padding(.horizontal, 14)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Paste Login Code")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.45))
 
                 HStack(spacing: 8) {
                     TextField("code#state", text: $loginCode)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
                         .disabled(isLoggingIn)
 
-                    Button(isLoggingIn ? "Logging in…" : "Login") {
+                    GlassButton(isLoggingIn ? "Logging in…" : "Login", isPrimary: true) {
                         submitCode()
                     }
                     .disabled(loginCode.isEmpty || isLoggingIn)
-                    .controlSize(.small)
+                    .opacity(loginCode.isEmpty || isLoggingIn ? 0.5 : 1)
                 }
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                        .font(.system(size: 10))
+                        .foregroundColor(.red.opacity(0.9))
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 4)
         }
     }
