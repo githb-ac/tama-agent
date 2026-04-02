@@ -11,6 +11,7 @@ final class PromptPanelController {
     private var panel: FloatingPanel?
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
+    private var conversationHistory: [[String: String]] = []
 
     // MARK: - Public
 
@@ -62,30 +63,35 @@ final class PromptPanelController {
             panel = newPanel
         }
 
+        conversationHistory = []
         panel?.present()
     }
 
     private func handleSubmit(_ text: String) {
-        // Set mascot to waiting state
         panel?.mascot.setState(.waiting)
 
-        // Placeholder response — will be replaced with AI backend.
-        let lines = (1 ... 30).map { "Line \($0): Response to \"\(text)\"" }
-        let response = "You asked: \"\(text)\"\n\n"
-            + lines.joined(separator: "\n")
-            + "\n\nEnd of response. Scroll up to see more."
-
-        // Simulate a brief wait, then show response
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(0.5))
-            guard let self else { return }
-            panel?.mascot.setState(.responding)
-            panel?.showResponse(response)
-
-            // After response is shown, settle back to idle
-            try? await Task.sleep(for: .seconds(4.0))
-            guard panel?.mascot.currentState == .responding else { return }
+        guard ClaudeService.shared.isLoggedIn else {
             panel?.mascot.setState(.idle)
+            panel?.showResponse("Not logged in to Claude. Use the menu bar → Login to Claude.")
+            return
+        }
+
+        conversationHistory.append(["role": "user", "content": text])
+
+        let stream = ClaudeService.shared.send(messages: conversationHistory)
+
+        Task { @MainActor [weak self] in
+            guard let self, let panel else { return }
+
+            do {
+                let responseText = try await panel.streamResponse(stream)
+                conversationHistory.append(["role": "assistant", "content": responseText])
+            } catch {
+                // Remove the user message if the request failed
+                conversationHistory.removeLast()
+                panel.showResponse("Error: \(error.localizedDescription)")
+                panel.mascot.setState(.idle)
+            }
         }
     }
 
