@@ -13,8 +13,18 @@ final class PromptPanelController {
     private var eventHandler: EventHandlerRef?
     private var conversationHistory: [[String: Any]] = []
     private lazy var agentLoop = AgentLoop(
-        workingDirectory: FileManager.default.homeDirectoryForCurrentUser.path
+        workingDirectory: Self.ensureWorkspace()
     )
+
+    /// Returns ~/Documents/Tamagotchai, creating it if needed.
+    private static func ensureWorkspace() -> String {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let workspace = docs.appendingPathComponent("Tamagotchai")
+        if !FileManager.default.fileExists(atPath: workspace.path) {
+            try? FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        }
+        return workspace.path
+    }
 
     // MARK: - Public
 
@@ -150,8 +160,7 @@ final class PromptPanelController {
     }
 
     private var agentSystemPrompt: String {
-        let cwd = FileManager.default
-            .homeDirectoryForCurrentUser.path
+        let cwd = Self.ensureWorkspace()
         return """
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \

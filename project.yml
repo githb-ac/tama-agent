@@ -15,6 +15,9 @@ packages:
   RiveRuntime:
     url: https://github.com/rive-app/rive-ios
     from: "6.18.0"
+  Highlightr:
+    url: https://github.com/raspu/Highlightr
+    from: "2.2.1"
 
 targets:
   Tamagotchai:
@@ -36,6 +39,7 @@ targets:
         INFOPLIST_KEY_LSUIElement: YES
     dependencies:
       - package: RiveRuntime
+      - package: Highlightr
     entitlements:
       path: tamagotchai/Entitlements/Tamagotchai.entitlements
     preBuildScripts:
