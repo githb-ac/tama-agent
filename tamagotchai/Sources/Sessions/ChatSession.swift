@@ -1,0 +1,232 @@
+import Foundation
+
+/// A single message in a chat session, with Codable persistence.
+struct ChatMessage: Codable, Identifiable {
+    let id: UUID
+    let role: MessageRole
+    let content: [MessageContent]
+    let timestamp: Date
+
+    enum MessageRole: String, Codable { case user, assistant }
+}
+
+/// A content block within a message — mirrors the Claude API content types.
+enum MessageContent: Codable {
+    case text(String)
+    case toolUse(id: String, name: String, input: Data)
+    case toolResult(toolUseId: String, content: String)
+    case serverToolUse(id: String, name: String, input: Data)
+    case serverToolResult(toolUseId: String, content: Data)
+    case serverToolResultError(toolUseId: String, errorCode: String)
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case type, text, id, name, input, toolUseId, content, errorCode
+    }
+
+    private enum ContentType: String, Codable {
+        case text, toolUse, toolResult, serverToolUse, serverToolResult, serverToolResultError
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .text(text):
+            try container.encode(ContentType.text, forKey: .type)
+            try container.encode(text, forKey: .text)
+        case let .toolUse(id, name, input):
+            try container.encode(ContentType.toolUse, forKey: .type)
+            try container.encode(id, forKey: .id)
+            try container.encode(name, forKey: .name)
+            try container.encode(input, forKey: .input)
+        case let .toolResult(toolUseId, content):
+            try container.encode(ContentType.toolResult, forKey: .type)
+            try container.encode(toolUseId, forKey: .toolUseId)
+            try container.encode(content, forKey: .content)
+        case let .serverToolUse(id, name, input):
+            try container.encode(ContentType.serverToolUse, forKey: .type)
+            try container.encode(id, forKey: .id)
+            try container.encode(name, forKey: .name)
+            try container.encode(input, forKey: .input)
+        case let .serverToolResult(toolUseId, content):
+            try container.encode(ContentType.serverToolResult, forKey: .type)
+            try container.encode(toolUseId, forKey: .toolUseId)
+            try container.encode(content, forKey: .content)
+        case let .serverToolResultError(toolUseId, errorCode):
+            try container.encode(ContentType.serverToolResultError, forKey: .type)
+            try container.encode(toolUseId, forKey: .toolUseId)
+            try container.encode(errorCode, forKey: .errorCode)
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(ContentType.self, forKey: .type)
+        switch type {
+        case .text:
+            let text = try container.decode(String.self, forKey: .text)
+            self = .text(text)
+        case .toolUse:
+            let id = try container.decode(String.self, forKey: .id)
+            let name = try container.decode(String.self, forKey: .name)
+            let input = try container.decode(Data.self, forKey: .input)
+            self = .toolUse(id: id, name: name, input: input)
+        case .toolResult:
+            let toolUseId = try container.decode(String.self, forKey: .toolUseId)
+            let content = try container.decode(String.self, forKey: .content)
+            self = .toolResult(toolUseId: toolUseId, content: content)
+        case .serverToolUse:
+            let id = try container.decode(String.self, forKey: .id)
+            let name = try container.decode(String.self, forKey: .name)
+            let input = try container.decode(Data.self, forKey: .input)
+            self = .serverToolUse(id: id, name: name, input: input)
+        case .serverToolResult:
+            let toolUseId = try container.decode(String.self, forKey: .toolUseId)
+            let content = try container.decode(Data.self, forKey: .content)
+            self = .serverToolResult(toolUseId: toolUseId, content: content)
+        case .serverToolResultError:
+            let toolUseId = try container.decode(String.self, forKey: .toolUseId)
+            let errorCode = try container.decode(String.self, forKey: .errorCode)
+            self = .serverToolResultError(toolUseId: toolUseId, errorCode: errorCode)
+        }
+    }
+}
+
+/// A persisted chat session containing messages and metadata.
+struct ChatSession: Codable, Identifiable {
+    let id: UUID
+    var title: String
+    var messages: [ChatMessage]
+    let createdAt: Date
+    var updatedAt: Date
+}
+
+// MARK: - API Format Conversion
+
+extension ChatMessage {
+    /// Convert from a Claude API message dictionary to a `ChatMessage`.
+    static func fromAPIFormat(_ dict: [String: Any]) -> ChatMessage? {
+        guard let roleStr = dict["role"] as? String,
+              let role = MessageRole(rawValue: roleStr)
+        else { return nil }
+
+        var blocks: [MessageContent] = []
+
+        if let contentStr = dict["content"] as? String {
+            blocks.append(.text(contentStr))
+        } else if let contentArray = dict["content"] as? [[String: Any]] {
+            for block in contentArray {
+                guard let type = block["type"] as? String else { continue }
+                switch type {
+                case "text":
+                    if let text = block["text"] as? String {
+                        blocks.append(.text(text))
+                    }
+                case "tool_use":
+                    if let id = block["id"] as? String,
+                       let name = block["name"] as? String
+                    {
+                        let input = block["input"] as? [String: Any] ?? [:]
+                        let data = (try? JSONSerialization.data(withJSONObject: input)) ?? Data()
+                        blocks.append(.toolUse(id: id, name: name, input: data))
+                    }
+                case "tool_result":
+                    if let toolUseId = block["tool_use_id"] as? String {
+                        let content: String = if let str = block["content"] as? String {
+                            str
+                        } else if let arr = block["content"] as? [[String: Any]],
+                                  let first = arr.first,
+                                  let text = first["text"] as? String
+                        {
+                            text
+                        } else {
+                            ""
+                        }
+                        blocks.append(.toolResult(toolUseId: toolUseId, content: content))
+                    }
+                case "server_tool_use":
+                    if let id = block["id"] as? String,
+                       let name = block["name"] as? String
+                    {
+                        let input = block["input"] as? [String: Any] ?? [:]
+                        let data = (try? JSONSerialization.data(withJSONObject: input)) ?? Data()
+                        blocks.append(.serverToolUse(id: id, name: name, input: data))
+                    }
+                case "web_search_tool_result":
+                    if let toolUseId = block["tool_use_id"] as? String {
+                        if let contentArr = block["content"] as? [[String: Any]],
+                           let first = contentArr.first,
+                           first["type"] as? String == "web_search_tool_result_error"
+                        {
+                            let errorCode = first["error_code"] as? String ?? "unknown"
+                            blocks.append(.serverToolResultError(toolUseId: toolUseId, errorCode: errorCode))
+                        } else {
+                            let contentData = (try? JSONSerialization.data(
+                                withJSONObject: block["content"] ?? []
+                            )) ?? Data()
+                            blocks.append(.serverToolResult(toolUseId: toolUseId, content: contentData))
+                        }
+                    }
+                default:
+                    break
+                }
+            }
+        }
+
+        guard !blocks.isEmpty else { return nil }
+        return ChatMessage(id: UUID(), role: role, content: blocks, timestamp: Date())
+    }
+
+    /// Convert this message back to Claude API format `[String: Any]`.
+    func toAPIFormat() -> [String: Any] {
+        // Simple user text message
+        if role == .user, content.count == 1, case let .text(text) = content[0] {
+            return ["role": "user", "content": text]
+        }
+
+        let contentArray: [[String: Any]] = content.map { block in
+            switch block {
+            case let .text(text):
+                return ["type": "text", "text": text]
+            case let .toolUse(id, name, inputData):
+                let input = (try? JSONSerialization.jsonObject(with: inputData) as? [String: Any]) ?? [:]
+                return ["type": "tool_use", "id": id, "name": name, "input": input]
+            case let .toolResult(toolUseId, content):
+                return ["type": "tool_result", "tool_use_id": toolUseId, "content": content]
+            case let .serverToolUse(id, name, inputData):
+                let input = (try? JSONSerialization.jsonObject(with: inputData) as? [String: Any]) ?? [:]
+                return ["type": "server_tool_use", "id": id, "name": name, "input": input]
+            case let .serverToolResult(toolUseId, contentData):
+                let content = (try? JSONSerialization.jsonObject(with: contentData)) ?? []
+                return ["type": "web_search_tool_result", "tool_use_id": toolUseId, "content": content]
+            case let .serverToolResultError(toolUseId, errorCode):
+                return [
+                    "type": "web_search_tool_result",
+                    "tool_use_id": toolUseId,
+                    "content": [["type": "web_search_tool_result_error", "error_code": errorCode]],
+                ] as [String: Any]
+            }
+        }
+
+        return ["role": role.rawValue, "content": contentArray]
+    }
+}
+
+// MARK: - Title Generation
+
+extension ChatSession {
+    /// Generates a title from the first user message text.
+    static func generateTitle(from firstMessage: String) -> String {
+        let maxLen = 50
+        let trimmed = firstMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxLen else { return trimmed }
+
+        let prefix = String(trimmed.prefix(maxLen))
+        // Truncate at last word boundary
+        if let lastSpace = prefix.lastIndex(of: " ") {
+            return String(prefix[..<lastSpace]) + "…"
+        }
+        return prefix + "…"
+    }
+}

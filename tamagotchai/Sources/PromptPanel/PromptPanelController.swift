@@ -12,6 +12,7 @@ final class PromptPanelController {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
     private var conversationHistory: [[String: Any]] = []
+    private var currentSession: ChatSession?
     private var isVoiceMode = false
     private var isDismissedByAgent = false
     private var activeAgentTask: Task<Void, Never>?
@@ -88,9 +89,17 @@ final class PromptPanelController {
         cancelAllActiveTasks()
 
         isDismissedByAgent = false
+        currentSession = nil
         ensurePanel()
         conversationHistory = []
         panel?.present()
+
+        // Show recent sessions if any exist
+        SessionStore.shared.loadAll()
+        let groups = SessionStore.shared.allSessionsGroupedByDate()
+        if !groups.isEmpty {
+            panel?.showSessionList(groups)
+        }
 
         // Start voice capture alongside typing — user decides by their action
         startVoiceCapture()
@@ -122,8 +131,15 @@ final class PromptPanelController {
             guard let self, let newPanel else { return }
             if text.isEmpty {
                 newPanel.mascot.setState(.idle)
+                // Re-show session list when input is cleared
+                let groups = SessionStore.shared.allSessionsGroupedByDate()
+                if !groups.isEmpty {
+                    newPanel.showSessionList(groups)
+                }
             } else {
                 newPanel.mascot.notifyKeystroke()
+                // Hide session list when user starts typing
+                newPanel.hideSessionList()
                 // User started typing — cancel voice capture & speech, switch to typing mode
                 if VoiceService.shared.state == .followUp {
                     logger.info("User typing — cancelling voice capture")
@@ -133,6 +149,12 @@ final class PromptPanelController {
                     isVoiceMode = false
                 }
             }
+        }
+        newPanel.onSelectSession = { [weak self] session in
+            self?.loadSession(session)
+        }
+        newPanel.onDeleteSession = { [weak self] session in
+            self?.deleteSession(session)
         }
         newPanel.onInterrupt = { [weak self] in
             guard let self else { return false }
@@ -166,6 +188,73 @@ final class PromptPanelController {
         return wasActive
     }
 
+    // MARK: - Session Management
+
+    /// Loads a saved session into the panel.
+    private func loadSession(_ session: ChatSession) {
+        logger.info("Loading session '\(session.title)' with \(session.messages.count) messages")
+        currentSession = session
+
+        // Rebuild conversationHistory from saved messages
+        conversationHistory = session.messages.map { $0.toAPIFormat() }
+
+        // Show the conversation in the panel
+        panel?.restoreConversation(messages: session.messages)
+    }
+
+    /// Deletes a session and refreshes the list.
+    private func deleteSession(_ session: ChatSession) {
+        logger.info("Deleting session '\(session.title)'")
+        SessionStore.shared.delete(id: session.id)
+
+        // If we're viewing this session, clear it
+        if currentSession?.id == session.id {
+            currentSession = nil
+            conversationHistory = []
+        }
+
+        // Refresh the list
+        let groups = SessionStore.shared.allSessionsGroupedByDate()
+        if groups.isEmpty {
+            panel?.hideSessionList()
+        } else {
+            panel?.showSessionList(groups)
+        }
+    }
+
+    /// Saves the current conversation as a session.
+    private func saveCurrentSession() {
+        // Need at least one user message to save
+        guard !conversationHistory.isEmpty else { return }
+
+        let messages = conversationHistory.compactMap { ChatMessage.fromAPIFormat($0) }
+        guard !messages.isEmpty else { return }
+
+        if var session = currentSession {
+            // Update existing session
+            session.messages = messages
+            session.updatedAt = Date()
+            currentSession = session
+            SessionStore.shared.save(session: session)
+        } else {
+            // Create new session
+            let firstUserText = messages.first { $0.role == .user }?.content.compactMap { block -> String? in
+                if case let .text(t) = block { return t }
+                return nil
+            }.joined() ?? "New conversation"
+
+            let session = ChatSession(
+                id: UUID(),
+                title: ChatSession.generateTitle(from: firstUserText),
+                messages: messages,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+            currentSession = session
+            SessionStore.shared.save(session: session)
+        }
+    }
+
     // MARK: - Voice Capture
 
     /// Starts voice capture with waveform. User can speak or type — typing cancels voice.
@@ -176,6 +265,7 @@ final class PromptPanelController {
         panel.showVoiceFollowUp()
 
         VoiceService.shared.onPartialTranscript = { [weak self] transcript in
+            self?.panel?.hideSessionList()
             self?.panel?.insertVoiceText(transcript)
         }
 
@@ -206,6 +296,9 @@ final class PromptPanelController {
 
         // Cancel any in-flight work before starting new ones.
         cancelAllActiveTasks()
+
+        // Hide session list if visible
+        panel?.hideSessionList()
 
         panel?.mascot.setState(.waiting)
         MenuBarMood.shared.setActivity(.thinking)
@@ -291,6 +384,7 @@ final class PromptPanelController {
                 conversationHistory = updatedHistory
                 // swiftformat:disable:next redundantSelf
                 logger.info("Conversation history updated — \(self.conversationHistory.count) messages")
+                saveCurrentSession()
             } catch is AgentDismissError {
                 logger.info("Agent dismissed — closing panel")
                 isDismissedByAgent = true

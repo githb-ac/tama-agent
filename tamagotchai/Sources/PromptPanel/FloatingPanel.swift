@@ -132,6 +132,23 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         return v
     }()
 
+    /// The session history list shown when the panel opens.
+    private lazy var sessionListView: SessionListView = {
+        let v = SessionListView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.onSelectSession = { [weak self] session in
+            self?.onSelectSession?(session)
+        }
+        v.onDeleteSession = { [weak self] session in
+            self?.onDeleteSession?(session)
+        }
+        return v
+    }()
+
+    /// Height constraint for the session list.
+    private var sessionListHeightConstraint: NSLayoutConstraint?
+
     /// Height constraint for the response scroll view.
     private var responseHeightConstraint: NSLayoutConstraint?
 
@@ -146,6 +163,12 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Called when the user presses Escape while agent is active — interrupt, don't dismiss.
     var onInterrupt: (() -> Bool)?
+
+    /// Called when the user selects a session from the history list.
+    var onSelectSession: ((ChatSession) -> Void)?
+
+    /// Called when the user deletes a session from the history list.
+    var onDeleteSession: ((ChatSession) -> Void)?
 
     // MARK: - UI Components
 
@@ -330,9 +353,14 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             mainStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor),
         ])
 
-        // Add divider + response to stack once, keep them hidden
+        // Add divider + session list + response to stack, keep them hidden
         mainStack.addArrangedSubview(dividerContainer)
+        mainStack.addArrangedSubview(sessionListView)
         mainStack.addArrangedSubview(responseScrollView)
+
+        let sessionHeight = sessionListView.heightAnchor.constraint(equalToConstant: 0)
+        sessionHeight.isActive = true
+        sessionListHeightConstraint = sessionHeight
 
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true
@@ -1143,6 +1171,158 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         CATransaction.commit()
     }
 
+    // MARK: - Session List
+
+    /// Shows the session history list with grouped sessions.
+    func showSessionList(_ groups: [(label: String, sessions: [ChatSession])]) {
+        guard !groups.isEmpty else { return }
+        sessionListView.reload(groups: groups)
+
+        // Calculate target height based on content
+        let rowHeight: CGFloat = 44
+        let headerHeight: CGFloat = 28
+        let padding: CGFloat = 12
+        let totalItems = groups.reduce(0) { $0 + $1.sessions.count }
+        let totalHeaders = groups.count
+        let contentHeight = CGFloat(totalItems) * rowHeight + CGFloat(totalHeaders) * headerHeight + padding
+        let targetHeight = min(contentHeight, responseMaxHeight)
+
+        sessionListHeightConstraint?.constant = 0
+        dividerContainer.isHidden = false
+        sessionListView.isHidden = false
+        dividerContainer.alphaValue = 1
+        sessionListView.alphaValue = 1
+
+        let newPanelHeight = inputHeight + 1 + targetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            ctx.allowsImplicitAnimation = true
+            self.sessionListHeightConstraint?.animator().constant = targetHeight
+            self.animator().setFrame(newFrame, display: true)
+        } completionHandler: {
+            MainActor.assumeIsolated { [weak self] in
+                self?.positionMascotOverSpacer()
+            }
+        }
+
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
+    /// Hides the session list.
+    func hideSessionList() {
+        guard !sessionListView.isHidden else { return }
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            self.sessionListView.animator().alphaValue = 0
+        } completionHandler: {
+            MainActor.assumeIsolated { [weak self] in
+                guard let self else { return }
+                sessionListView.isHidden = true
+                sessionListHeightConstraint?.constant = 0
+                // If response area is also hidden, collapse the divider too
+                if responseScrollView.isHidden {
+                    dividerContainer.isHidden = true
+                    let panelFrame = NSRect(
+                        x: frame.origin.x,
+                        y: topY - inputHeight,
+                        width: panelWidth,
+                        height: inputHeight
+                    )
+                    setFrame(panelFrame, display: true)
+                    positionMascotOverSpacer()
+                }
+                invalidateShadow()
+            }
+        }
+    }
+
+    /// Restores a full conversation from saved messages into the response area.
+    func restoreConversation(messages: [ChatMessage]) {
+        // Reset streaming/conversation state
+        rawMarkdown = ""
+        pendingMarkdown = ""
+        displayedMarkdown = ""
+        conversationAttributed = NSMutableAttributedString()
+        conversationBaseLength = 0
+        characterQueue = []
+        streamFinished = false
+        typingFinished = false
+        lastRenderLength = 0
+        lastTargetHeight = 0
+        reachedMaxHeight = false
+        autoScrollEnabled = true
+        stopDisplayLink()
+        stopCursorBlink()
+        responseTextView.removeAllCopyButtons()
+
+        // Build the full conversation attributed string
+        for message in messages {
+            switch message.role {
+            case .user:
+                let text = message.content.compactMap { block -> String? in
+                    if case let .text(t) = block { return t }
+                    return nil
+                }.joined()
+                if !text.isEmpty {
+                    conversationAttributed.append(makeUserBubble(text))
+                }
+            case .assistant:
+                let text = message.content.compactMap { block -> String? in
+                    if case let .text(t) = block { return t }
+                    return nil
+                }.joined()
+                if !text.isEmpty {
+                    conversationAttributed.append(MarkdownRenderer.render(text))
+                }
+            }
+        }
+
+        conversationBaseLength = conversationAttributed.length
+
+        // Set the text storage
+        responseTextView.textStorage?.setAttributedString(conversationAttributed)
+
+        // Hide session list, show response area
+        sessionListView.isHidden = true
+        sessionListHeightConstraint?.constant = 0
+        dividerContainer.isHidden = false
+        responseScrollView.isHidden = false
+        dividerContainer.alphaValue = 1
+        responseScrollView.alphaValue = 1
+
+        // Size the panel
+        reachedMaxHeight = true
+        responseHeightConstraint?.constant = responseMaxHeight
+        responseScrollView.hasVerticalScroller = true
+        lastTargetHeight = responseMaxHeight
+
+        let panelHeight = inputHeight + 1 + responseMaxHeight
+        let newOriginY = topY - panelHeight
+        setFrame(
+            NSRect(x: frame.origin.x, y: newOriginY, width: panelWidth, height: panelHeight),
+            display: true
+        )
+
+        responseTextView.updateCodeBlockOverlays()
+        positionMascotOverSpacer()
+        invalidateShadow()
+        scrollToBottomInstantly()
+        makeFirstResponder(inputField)
+        mascot.setState(.idle)
+    }
+
     // MARK: - Text change tracking
 
     func controlTextDidChange(_: Notification) {
@@ -1290,6 +1470,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true
         responseHeightConstraint?.constant = 0
+        sessionListView.isHidden = true
+        sessionListView.alphaValue = 1
+        sessionListHeightConstraint?.constant = 0
         mascot.setState(.idle)
 
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
