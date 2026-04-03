@@ -1,5 +1,6 @@
 import os
 import SwiftUI
+import UserNotifications
 
 private let logger = Logger(
     subsystem: "com.unstablemind.tamagotchai",
@@ -36,6 +37,17 @@ struct TamagotchaiApp: App {
                 }
             }
 
+            #if DEBUG
+            Divider()
+
+            Button("Test Notification") {
+                NotchNotificationPresenter.showReminder(
+                    name: "Test Reminder",
+                    message: "This is a test notification to preview the toast style."
+                )
+            }
+            #endif
+
             Divider()
 
             Button("Quit") {
@@ -47,17 +59,41 @@ struct TamagotchaiApp: App {
 }
 
 /// App delegate handles hotkey registration at launch.
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         let isLoggedIn = ClaudeService.shared.isLoggedIn
         let hasAccessibility = PermissionsChecker.shared.isAccessibilityGranted()
         logger.info("App launched — loggedIn: \(isLoggedIn), accessibility: \(hasAccessibility)")
         // Register global hotkey: ⌥ + Space
         PromptPanelController.shared.register()
+
+        // Request notification authorization
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error {
+                logger.error("Notification auth error: \(error.localizedDescription)")
+            } else {
+                logger.info("Notification auth granted: \(granted)")
+            }
+        }
+
+        // Start the scheduler
+        ScheduleStore.shared.start()
     }
 
     func applicationWillTerminate(_: Notification) {
         logger.info("App terminating")
+        ScheduleStore.shared.stop()
         PromptPanelController.shared.unregister()
+    }
+
+    // Show notifications even when app is in foreground
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent _: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }

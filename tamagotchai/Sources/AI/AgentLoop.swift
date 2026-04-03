@@ -10,6 +10,9 @@ enum AgentEvent: Sendable {
     case error(String)
 }
 
+/// Thrown when the agent invokes the dismiss tool to close the panel.
+struct AgentDismissError: Error {}
+
 /// Runs the tool execution loop: send → tool_use → execute → tool_result → repeat.
 @MainActor
 final class AgentLoop {
@@ -45,6 +48,9 @@ final class AgentLoop {
             try Task.checkCancellation()
             logger.info("Agent loop turn \(turn + 1)")
 
+            nonisolated(unsafe) var bufferedTextDeltas: [String] = []
+            nonisolated(unsafe) var hasDismissTool = false
+
             let response: ClaudeResponse
             do {
                 response = try await claude.sendWithTools(
@@ -53,16 +59,31 @@ final class AgentLoop {
                     systemPrompt: systemPrompt,
                     onEvent: { event in
                         if case let .textDelta(text) = event {
-                            onEvent(.textDelta(text))
+                            bufferedTextDeltas.append(text)
                         }
                         if case let .toolUseStart(id, name) = event {
-                            onEvent(.toolStart(name: name, id: id))
+                            if name == "dismiss" {
+                                hasDismissTool = true
+                            } else {
+                                for delta in bufferedTextDeltas {
+                                    onEvent(.textDelta(delta))
+                                }
+                                bufferedTextDeltas.removeAll()
+                                onEvent(.toolStart(name: name, id: id))
+                            }
                         }
                     }
                 )
             } catch {
                 logger.error("sendWithTools failed on turn \(turn + 1): \(error.localizedDescription)")
                 throw error
+            }
+
+            // Flush buffered text only if no dismiss tool was called
+            if !hasDismissTool {
+                for delta in bufferedTextDeltas {
+                    onEvent(.textDelta(delta))
+                }
             }
 
             // Build the assistant message content for conversation
@@ -85,6 +106,12 @@ final class AgentLoop {
                 logger.info("Turn complete — stop_reason=\(response.stopReason ?? "nil")")
                 onEvent(.turnComplete(text: accumulatedText))
                 return conversation
+            }
+
+            // If dismiss tool is in the calls, throw to immediately stop the loop
+            if toolCalls.contains(where: { $0.name == "dismiss" }) {
+                logger.info("Dismiss tool detected — ending agent loop")
+                throw AgentDismissError()
             }
 
             // Execute each tool and collect results

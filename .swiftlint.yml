@@ -7,6 +7,7 @@ excluded:
 
 disabled_rules:
   - trailing_comma
+  - opening_brace
 
 opt_in_rules:
   - closure_spacing
@@ -14,9 +15,7 @@ opt_in_rules:
   - explicit_init
   - fatal_error_message
   - first_where
-  - force_unwrapping
   - implicitly_unwrapped_optional
-  - missing_docs
   - modifier_order
   - multiline_parameters
   - operator_usage_whitespace
@@ -26,25 +25,47 @@ opt_in_rules:
   - vertical_parameter_alignment_on_call
 
 line_length:
-  warning: 120
+  warning: 140
   error: 200
 
 type_body_length:
-  warning: 300
-  error: 900
+  warning: 900
+  error: 1200
 
 file_length:
-  warning: 500
-  error: 1400
+  warning: 1400
+  error: 2000
 
 function_body_length:
-  warning: 50
-  error: 140
+  warning: 140
+  error: 200
+
+cyclomatic_complexity:
+  warning: 20
+  error: 30
+
+large_tuple:
+  warning: 4
+  error: 5
 
 identifier_name:
   min_length:
-    warning: 2
-    error: 1
+    warning: 1
+    error: 0
   max_length:
     warning: 60
     error: 80
+  excluded:
+    - i
+    - x
+    - y
+    - h
+    - m
+    - p
+    - s
+    - t
+    - v
+    - w
+
+nesting:
+  type_level: 2

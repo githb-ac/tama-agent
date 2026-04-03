@@ -11,7 +11,6 @@ private struct ToolError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-// swiftlint:disable:next type_body_length
 final class GrepTool: AgentTool, @unchecked Sendable {
     let name = "grep"
     let description = "Search file contents using regex. Returns filepath:line_number:content for matches."
@@ -53,9 +52,12 @@ final class GrepTool: AgentTool, @unchecked Sendable {
 
     func execute(args: [String: Any]) async throws -> String {
         let params = try parseArgs(args)
+        let pat = params.pattern
+        let pth = params.standardizedPath
+        let inc = params.includeGlob ?? "(none)"
         logger
             .info(
-                "Grep search: pattern=\(params.pattern, privacy: .public), path=\(params.standardizedPath, privacy: .public), include=\(params.includeGlob ?? "(none)", privacy: .public)"
+                "Grep: pattern=\(pat, privacy: .public) path=\(pth, privacy: .public) include=\(inc, privacy: .public)"
             )
         let regex = try buildRegex(pattern: params.pattern, caseInsensitive: params.caseInsensitive)
         let filesToSearch = try collectFiles(

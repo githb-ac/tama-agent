@@ -5,16 +5,6 @@ import SwiftUI
 /// or when the app deactivates (e.g. a system permission dialog appears).
 private final class StablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
-
-    override func resignKey() {
-        super.resignKey()
-        // Stay on screen — only dismiss via explicit close().
-    }
-
-    override func resignMain() {
-        super.resignMain()
-        // Stay on screen.
-    }
 }
 
 /// Reusable dropdown panel that appears below the menu bar with a HUD-style vibrancy background.

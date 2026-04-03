@@ -18,6 +18,9 @@ packages:
   Highlightr:
     url: https://github.com/raspu/Highlightr
     from: "2.2.1"
+  NotchNotification:
+    url: https://github.com/Lakr233/NotchNotification
+    from: "1.2.1"
 
 schemes:
   Tamagotchai:

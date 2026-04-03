@@ -48,7 +48,7 @@ final class StreamParser {
         logger
             .info(
                 // swiftformat:disable:next redundantSelf
-                "Stream parse complete — \(textCount) text block(s), \(toolCount) tool_use block(s), stop_reason=\(self.stopReason ?? "nil")"
+                "Stream done — \(textCount) text, \(toolCount) tool_use, stop=\(self.stopReason ?? "nil")"
             )
         return ClaudeResponse(
             content: contentBlocks,

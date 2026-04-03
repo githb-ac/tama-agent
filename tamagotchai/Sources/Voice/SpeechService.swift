@@ -126,7 +126,7 @@ final class SpeechService: NSObject, @unchecked Sendable {
 
     // MARK: - Sentence Extraction
 
-    /// Sentence-ending punctuation followed by whitespace.
+    // Sentence-ending punctuation followed by whitespace.
     // swiftlint:disable:next force_try
     private static let sentencePattern = try! NSRegularExpression(
         pattern: "(?<=[.!?])\\s+",

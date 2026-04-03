@@ -26,8 +26,9 @@ struct OAuthCredentials: Codable {
 enum ClaudeCredentials {
     private static let fileName = "claude-oauth.enc"
 
-    /// A stable device-derived key so credentials survive rebuilds.
-    /// Falls back to a hardcoded key if the hardware UUID is unavailable.
+    // A stable device-derived key so credentials survive rebuilds.
+    // Falls back to a hardcoded key if the hardware UUID is unavailable.
+    // swiftlint:disable:next modifier_order
     private nonisolated(unsafe) static var encryptionKey: SymmetricKey = {
         if let uuid = getHardwareUUID() {
             let seed = "com.unstablemind.tamagotchai.\(uuid)"

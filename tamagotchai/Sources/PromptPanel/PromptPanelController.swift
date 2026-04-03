@@ -13,11 +13,13 @@ final class PromptPanelController {
     private var eventHandler: EventHandlerRef?
     private var conversationHistory: [[String: Any]] = []
     private var isVoiceMode = false
+    private var isDismissedByAgent = false
     private var activeAgentTask: Task<Void, Never>?
     private var activeStreamTask: Task<Void, Never>?
     private lazy var agentLoop = AgentLoop(
         workingDirectory: Self.ensureWorkspace()
     )
+    private var dismissObserver: NSObjectProtocol?
 
     /// Returns ~/Documents/Tamagotchai, creating it if needed.
     private static func ensureWorkspace() -> String {
@@ -37,6 +39,14 @@ final class PromptPanelController {
         modifiers: UInt32 = UInt32(optionKey)
     ) {
         registerCarbonHotKey(keyCode: keyCode, modifiers: modifiers)
+        dismissObserver = NotificationCenter.default.addObserver(
+            forName: .agentRequestedDismiss,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.logger.info("Agent requested dismiss — closing panel")
+            self?.panel?.dismiss()
+        }
     }
 
     /// Unregisters the hotkey and cleans up.
@@ -48,6 +58,10 @@ final class PromptPanelController {
         if let eventHandler {
             RemoveEventHandler(eventHandler)
             self.eventHandler = nil
+        }
+        if let dismissObserver {
+            NotificationCenter.default.removeObserver(dismissObserver)
+            self.dismissObserver = nil
         }
     }
 
@@ -71,6 +85,7 @@ final class PromptPanelController {
         // This guarantees a clean slate even if the previous agent hung or errored.
         cancelAllActiveTasks()
 
+        isDismissedByAgent = false
         ensurePanel()
         conversationHistory = []
         panel?.present()
@@ -81,7 +96,7 @@ final class PromptPanelController {
 
     /// Cancels and nils all active tasks, stops TTS and voice capture,
     /// and resets the tool indicator. Safe to call even if nothing is active.
-    private func cancelAllActiveTasks() {
+    private func cancelAllActiveTasks(clearHistory: Bool = false) {
         activeAgentTask?.cancel()
         activeStreamTask?.cancel()
         activeAgentTask = nil
@@ -89,6 +104,9 @@ final class PromptPanelController {
         SpeechService.shared.stop()
         VoiceService.shared.stopFollowUpCapture()
         panel?.hideToolIndicator()
+        if clearHistory {
+            conversationHistory.removeAll()
+        }
     }
 
     private func ensurePanel() {
@@ -149,9 +167,10 @@ final class PromptPanelController {
 
     /// Starts voice capture with waveform. User can speak or type — typing cancels voice.
     private func startVoiceCapture() {
+        guard !isDismissedByAgent, let panel, panel.isVisible else { return }
         SpeechService.shared.stop()
         isVoiceMode = true
-        panel?.showVoiceFollowUp()
+        panel.showVoiceFollowUp()
 
         VoiceService.shared.onPartialTranscript = { [weak self] transcript in
             self?.panel?.insertVoiceText(transcript)
@@ -160,10 +179,10 @@ final class PromptPanelController {
         VoiceService.shared.onCaptureComplete = { [weak self] transcript in
             guard let self else { return }
             let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-            panel?.hideWaveform()
+            self.panel?.hideWaveform()
 
             if !trimmed.isEmpty {
-                panel?.insertVoiceText(trimmed)
+                self.panel?.insertVoiceText(trimmed)
                 handleSubmit(trimmed)
             }
             // isVoiceMode stays true — next ⌥Space will start voice again
@@ -267,6 +286,12 @@ final class PromptPanelController {
                 conversationHistory = updatedHistory
                 // swiftformat:disable:next redundantSelf
                 logger.info("Conversation history updated — \(self.conversationHistory.count) messages")
+            } catch is AgentDismissError {
+                logger.info("Agent dismissed — closing panel")
+                isDismissedByAgent = true
+                SpeechService.shared.stop()
+                cancelAllActiveTasks(clearHistory: true)
+                panel?.dismiss()
             } catch is CancellationError {
                 logger.info("Agent task cancelled")
             } catch {
@@ -322,7 +347,11 @@ final class PromptPanelController {
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \
         search code (grep/find), list directories (ls), and fetch web \
-        pages. working directory: \(cwd)
+        pages. you can also create reminders (create_reminder) and \
+        routines (create_routine) that run on a schedule, list them \
+        (list_schedules), and delete them (delete_schedule). \
+        reminders fire macOS notifications; routines run an LLM prompt \
+        and notify with the result. working directory: \(cwd)
         """
     }
 
@@ -331,8 +360,10 @@ final class PromptPanelController {
         return """
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \
-        search code (grep/find), list directories (ls), and fetch web \
-        pages. working directory: \(cwd)
+        search code (grep/find), list directories (ls), fetch web \
+        pages, and manage reminders/routines (create_reminder, \
+        create_routine, list_schedules, delete_schedule). \
+        working directory: \(cwd)
 
         CRITICAL: this is a voice conversation. your response will be spoken aloud. \
         you MUST be extremely brief:

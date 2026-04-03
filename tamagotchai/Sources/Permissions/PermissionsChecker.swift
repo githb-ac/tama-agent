@@ -39,7 +39,7 @@ private func requestSpeechAccess(
 // MARK: - PermissionsChecker
 
 @MainActor
-final class PermissionsChecker: Sendable {
+final class PermissionsChecker {
     static let shared = PermissionsChecker()
     private init() {}
 

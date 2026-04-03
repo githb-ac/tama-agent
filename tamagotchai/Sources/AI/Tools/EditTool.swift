@@ -171,10 +171,8 @@ final class EditTool: AgentTool, @unchecked Sendable {
         result += "@@ -\(oldStart + 1),\(oldEnd - oldStart) +\(oldStart + 1),\(newEnd - oldStart) @@\n"
 
         // Context before
-        for i in oldStart ..< matchStartLine {
-            if i < oldLines.count {
-                result += " \(oldLines[i])\n"
-            }
+        for i in oldStart ..< matchStartLine where i < oldLines.count {
+            result += " \(oldLines[i])\n"
         }
 
         // Removed lines
