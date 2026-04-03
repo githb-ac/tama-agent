@@ -92,6 +92,9 @@ final class VoiceService: @unchecked Sendable {
         request.addsPunctuation = false
         recognitionRequest = request
 
+        // Mute system audio so music/sounds don't get picked up by the mic
+        SystemAudioMuter.muteSystemOutput()
+
         let engine = AVAudioEngine()
         audioEngine = engine
 
@@ -240,6 +243,9 @@ final class VoiceService: @unchecked Sendable {
         audioEngine = nil
 
         speechRecognizer = nil
+
+        // Restore system audio after voice capture ends
+        SystemAudioMuter.unmuteSystemOutput()
     }
 
     private func noteAudioLevel(rms: Double) {
