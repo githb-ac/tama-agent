@@ -211,9 +211,8 @@ final class PromptPanelController {
         guard ClaudeService.shared.isLoggedIn else {
             logger.warning("Submit attempted but not logged in")
             panel?.mascot.setState(.idle)
-            panel?.showResponse(
-                "Not logged in to Claude. Use the menu bar → Login to Claude."
-            )
+            let err = AppError.notConnected
+            panel?.showError(title: err.title, message: err.message, tint: err.tint)
             return
         }
 
@@ -279,7 +278,7 @@ final class PromptPanelController {
                             DispatchQueue.main.async {
                                 self?.panel?.hideToolIndicator()
                             }
-                            continuation.yield("\n⚠️ \(msg)\n")
+                            continuation.yield("\n\n> **Error:** \(msg)\n\n")
                         }
                     }
                 )
@@ -327,8 +326,11 @@ final class PromptPanelController {
                 logger.error("Stream response error: \(error.localizedDescription)")
                 conversationHistory.removeLast()
                 panel.hideToolIndicator()
-                panel.showResponse(
-                    "Error: \(error.localizedDescription)"
+                let appError = AppError.from(error)
+                panel.showError(
+                    title: appError.title,
+                    message: appError.message,
+                    tint: appError.tint
                 )
                 panel.mascot.setState(.idle)
                 startVoiceCapture()

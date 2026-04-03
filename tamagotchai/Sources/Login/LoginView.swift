@@ -111,9 +111,20 @@ struct LoginView: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 10))
-                        .foregroundColor(.red.opacity(0.9))
+                    HStack(spacing: 6) {
+                        Text(errorMessage)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(2)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.orange.opacity(0.25))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.orange.opacity(0.45), lineWidth: 1)
+                    )
+                    .cornerRadius(8)
                 }
             }
             .padding(.horizontal, 14)
@@ -132,7 +143,8 @@ struct LoginView: View {
                 onLoginStateChanged(true)
                 LoginWindowController.dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                let appError = AppError.loginFailed(error.localizedDescription)
+                errorMessage = appError.message
             }
             isLoggingIn = false
         }

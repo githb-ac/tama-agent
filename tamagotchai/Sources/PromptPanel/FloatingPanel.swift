@@ -421,6 +421,137 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     // MARK: - Response
 
+    /// Shows a styled error block in the response area with a tinted background, bold title, and message.
+    func showError(title: String, message: String, tint: NSColor) {
+        let block = NSMutableAttributedString()
+
+        let titleFont = NSFont.systemFont(ofSize: 16, weight: .semibold)
+        let messageFont = NSFont.systemFont(ofSize: 14, weight: .regular)
+        let textColor = NSColor.white
+
+        // Build paragraph style
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = 4
+        style.paragraphSpacing = 0
+
+        // Title line
+        block.append(NSAttributedString(
+            string: title + "\n",
+            attributes: [
+                .font: titleFont,
+                .foregroundColor: textColor,
+                .paragraphStyle: style,
+            ]
+        ))
+
+        // Message line
+        let msgStyle = NSMutableParagraphStyle()
+        msgStyle.lineSpacing = 3
+        block.append(NSAttributedString(
+            string: message,
+            attributes: [
+                .font: messageFont,
+                .foregroundColor: textColor.withAlphaComponent(0.85),
+                .paragraphStyle: msgStyle,
+            ]
+        ))
+
+        // Wrap in a rounded-rect background using NSTextBlock
+        let errorBlock = ErrorTextBlock(tint: tint)
+        let blockStyle = NSMutableParagraphStyle()
+        blockStyle.textBlocks = [errorBlock]
+        blockStyle.lineSpacing = 4
+        blockStyle.paragraphSpacingBefore = 0
+
+        let wrapped = NSMutableAttributedString()
+        // Use a single paragraph with line break so NSTextBlock wraps both lines
+        let titleStr = NSMutableAttributedString(
+            string: title,
+            attributes: [
+                .font: titleFont,
+                .foregroundColor: textColor,
+            ]
+        )
+        let msgStr = NSMutableAttributedString(
+            string: "\n" + message,
+            attributes: [
+                .font: messageFont,
+                .foregroundColor: textColor.withAlphaComponent(0.85),
+            ]
+        )
+        wrapped.append(titleStr)
+        wrapped.append(msgStr)
+        wrapped.addAttribute(
+            .paragraphStyle, value: blockStyle,
+            range: NSRange(location: 0, length: wrapped.length)
+        )
+        // NSTextBlock needs a trailing newline
+        let resetStyle = NSMutableParagraphStyle()
+        resetStyle.paragraphSpacingBefore = 0
+        resetStyle.paragraphSpacing = 0
+        wrapped.append(NSAttributedString(
+            string: "\n",
+            attributes: [
+                .font: messageFont,
+                .paragraphStyle: resetStyle,
+            ]
+        ))
+
+        showResponse(wrapped)
+    }
+
+    /// Shows the response area with a pre-built attributed string.
+    func showResponse(_ attributed: NSAttributedString) {
+        rawMarkdown = ""
+        responseTextView.textStorage?.setAttributedString(attributed)
+
+        let textHeight = measureTextHeight()
+        let totalTextHeight = textHeight
+            + responseTextView.textContainerInset.height * 2
+        let targetHeight = min(totalTextHeight, responseMaxHeight)
+
+        responseHeightConstraint?.constant = 0
+        dividerContainer.isHidden = false
+        responseScrollView.isHidden = false
+        dividerContainer.alphaValue = 1
+        responseScrollView.alphaValue = 1
+
+        let initialPanelHeight = inputHeight + 1
+        let initialFrame = NSRect(
+            x: frame.origin.x,
+            y: topY - initialPanelHeight,
+            width: panelWidth,
+            height: initialPanelHeight
+        )
+        setFrame(initialFrame, display: true)
+
+        let newPanelHeight = inputHeight + 1 + targetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.allowsImplicitAnimation = true
+            self.responseHeightConstraint?.animator().constant = targetHeight
+            self.animator().setFrame(newFrame, display: true)
+        } completionHandler: {
+            MainActor.assumeIsolated { [weak self] in
+                self?.positionMascotOverSpacer()
+            }
+        }
+
+        responseTextView.scrollToBeginningOfDocument(nil)
+        positionMascotOverSpacer()
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
     /// Shows the response area below the input with the given text (rendered as markdown).
     func showResponse(_ text: String) {
         rawMarkdown = text
@@ -1030,9 +1161,14 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         audioWaveformView.setAudioLevel(rms)
     }
 
-    /// Inserts transcribed voice text into the input field.
+    /// Inserts transcribed voice text into the input field and scrolls to the end.
     func insertVoiceText(_ text: String) {
         inputField.stringValue = text
+        // Scroll the field editor to the end so the latest dictated text is visible
+        if let editor = inputField.currentEditor() {
+            editor.selectedRange = NSRange(location: (text as NSString).length, length: 0)
+            editor.scrollRangeToVisible(editor.selectedRange)
+        }
     }
 
     /// Hides the waveform after voice capture completes (entering response streaming).
@@ -1216,5 +1352,45 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
                 self.isDismissing = false
             }
         }
+    }
+}
+
+// MARK: - Error Text Block
+
+/// NSTextBlock subclass that draws a tinted rounded-rect background with a subtle border.
+final class ErrorTextBlock: NSTextBlock {
+    private let tint: NSColor
+
+    init(tint: NSColor) {
+        self.tint = tint
+        super.init()
+        setContentWidth(100, type: .percentageValueType)
+        setWidth(12, type: .absoluteValueType, for: .padding)
+        setWidth(14, type: .absoluteValueType, for: .padding, edge: .minX)
+        setWidth(14, type: .absoluteValueType, for: .padding, edge: .maxX)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func drawBackground(
+        withFrame frameRect: NSRect,
+        in controlView: NSView?,
+        characterRange _: NSRange,
+        layoutManager _: NSLayoutManager
+    ) {
+        let rect = frameRect.insetBy(dx: 1, dy: 1)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12)
+
+        // Tinted fill
+        tint.withAlphaComponent(0.25).setFill()
+        path.fill()
+
+        // Subtle border
+        tint.withAlphaComponent(0.45).setStroke()
+        path.lineWidth = 1
+        path.stroke()
     }
 }

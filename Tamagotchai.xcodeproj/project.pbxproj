@@ -34,6 +34,7 @@
 		6B4AE21C4C60C7A3879FFAC1 /* WriteTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C23F76A77C1AEDFCD0BC3D3 /* WriteTool.swift */; };
 		6C44A6DCF36B6EFEABBA96F3 /* NotchNotificationPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E403F3F88707440903AFEC16 /* NotchNotificationPresenter.swift */; };
 		6E304973699DF7CAB9D7744A /* GlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85A1ADE518F5788DF19D46F2 /* GlassButton.swift */; };
+		6FF7BDE0F2278E2567BD2ED0 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F24AB3C7CB4EC331ED3728 /* AppError.swift */; };
 		705BF951EDBA3B84995D11FD /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 79428049BDEB372B1D6B128C /* RiveRuntime */; };
 		7A6992BC438DDC623751B16B /* CreateRoutineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57353C6F64FC4E0E86EFD1B5 /* CreateRoutineTool.swift */; };
 		82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */; };
@@ -139,6 +140,7 @@
 		C11F7A234369898B60D88F2E /* ToolIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolIndicatorView.swift; sourceTree = "<group>"; };
 		C4D139C7D2BE379973866295 /* EditToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditToolTests.swift; sourceTree = "<group>"; };
 		CB467A37B99F8825954718A9 /* GrepTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrepTool.swift; sourceTree = "<group>"; };
+		D1F24AB3C7CB4EC331ED3728 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingPanel.swift; sourceTree = "<group>"; };
 		D73C96EF3465C96FC3D56A82 /* ScheduleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleStore.swift; sourceTree = "<group>"; };
 		D7FFDA50AC375F95476A13C6 /* SkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
@@ -372,6 +374,7 @@
 		E3D5EED0D16B15ECCB8E4EDF /* PromptPanel */ = {
 			isa = PBXGroup;
 			children = (
+				D1F24AB3C7CB4EC331ED3728 /* AppError.swift */,
 				D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */,
 				1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */,
 				A2296DDD794CFDF886EDE508 /* PanelHelperViews.swift */,
@@ -546,6 +549,7 @@
 			files = (
 				0D0119FAD42DE581E87D65C7 /* AgentLoop.swift in Sources */,
 				5E1228AF1C9F5A6C7B512653 /* AgentTool.swift in Sources */,
+				6FF7BDE0F2278E2567BD2ED0 /* AppError.swift in Sources */,
 				C346142DDA2530F7A15FDCBC /* AudioWaveformView.swift in Sources */,
 				E566577EF74445A44CDEC685 /* BashTool.swift in Sources */,
 				EDEFE417BF656F06FE8A6AE8 /* ClaudeCredentials.swift in Sources */,
