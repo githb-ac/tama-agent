@@ -15,6 +15,7 @@
 		1BA865B932634AFFA07CDE4D /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FFDA50AC375F95476A13C6 /* SkeletonView.swift */; };
 		1CFD4BDECF64380DC75A95A1 /* WriteToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A099A5B1D719BDC70D9EB8FA /* WriteToolTests.swift */; };
 		20010341711C692BD019245D /* ToolIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C11F7A234369898B60D88F2E /* ToolIndicatorView.swift */; };
+		2A9492B440B332C9BA04AF09 /* KokoroManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFDAAE592DC9D8AF0B29B87 /* KokoroManager.swift */; };
 		2F06E2C38FAD2168AAD031E7 /* WebFetchToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8668277287B1812CF738184 /* WebFetchToolTests.swift */; };
 		3663F97EF2E69F69683216DD /* GrepToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB29B0F1E450E5E8A53E226 /* GrepToolTests.swift */; };
 		36AE6F0084BDBABB7C84C713 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 6CC46E0EB5B907637FEDD4E2 /* Highlightr */; };
@@ -24,6 +25,7 @@
 		45F7F1A523FE5E69A58B038E /* FindToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79334AAFB8659DA675AEED17 /* FindToolTests.swift */; };
 		465F5E926E025E3475C5FB31 /* ReadToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12B82049C6C05BCC221E3CB7 /* ReadToolTests.swift */; };
 		494636F1B1027F365D1A3B43 /* ScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3ED3F618D51F16DF34947 /* ScheduleParser.swift */; };
+		4A828D5A83EBAAAB377315FB /* VoiceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A7D03CAF825914B6DD7B1 /* VoiceSettingsView.swift */; };
 		58A6EC99AA0D4939ED8985C9 /* avatar_pack.riv in Resources */ = {isa = PBXBuildFile; fileRef = 46B666BC978765216D62FF84 /* avatar_pack.riv */; };
 		5BFE8EA7252582A6DE513D3D /* WebFetchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AAE3B60D199496B2AD15707 /* WebFetchTool.swift */; };
 		5E1228AF1C9F5A6C7B512653 /* AgentTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240A2BC5BE91EC59111BB7FC /* AgentTool.swift */; };
@@ -40,6 +42,7 @@
 		901334BE0CF6E826E9BB12FB /* CreateReminderTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D5939D90AA79794265711D7 /* CreateReminderTool.swift */; };
 		9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE7C40F97BE3426E3660AB3 /* ContentView.swift */; };
 		92232CF2F234B831875BD6C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */; };
+		924A63F67CB201E2EA0E2034 /* KokoroSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F609933D31FA2FEA98F98AA6 /* KokoroSwift */; };
 		9901C15CD95D5870199CCBE7 /* ScheduleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73C96EF3465C96FC3D56A82 /* ScheduleStore.swift */; };
 		A0CFCF6317015068BA72D0D4 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B72494B058B18E81914F9612 /* PermissionsView.swift */; };
 		A105647F2FA2573F43DBD388 /* PanelHelperViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2296DDD794CFDF886EDE508 /* PanelHelperViews.swift */; };
@@ -48,6 +51,8 @@
 		AF3290B40BB654621C1CCDBD /* OAuthCredentialsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194336D686B4FAE0AEA94156 /* OAuthCredentialsTests.swift */; };
 		AF8519C7A25F8C02BCB1A68E /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4BC561B4564DD9CA624CF /* ClaudeService.swift */; };
 		AFB8A474EC6602B09505E1F1 /* MascotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B74160BBE6B75D3AA754C2 /* MascotView.swift */; };
+		B1995D6F4543DEFEF5576AB0 /* MLXUtilsLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = 8AF07308F2217335407FE1F0 /* MLXUtilsLibrary */; };
+		B1DFD1F470B86725D686F754 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = D07D13FBDF32CCD0EFEC813F /* MLX */; };
 		B46B0E4F8F6EACB819134DEA /* LsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6FEB4F6520174E8D9A991F /* LsTool.swift */; };
 		B4DDABF96AB6246F02380857 /* ToolRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC77E55006FD9A55C6508DBA /* ToolRegistryTests.swift */; };
 		BD02EB2A0950C8C2F57A56E9 /* ClaudeOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54066C4888E025A62763B481 /* ClaudeOAuth.swift */; };
@@ -58,6 +63,7 @@
 		C2623B3ECE718DE32321F874 /* StreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39BF415CCE6B24532C86B53B /* StreamParserTests.swift */; };
 		C346142DDA2530F7A15FDCBC /* AudioWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6EF719041DBAA5054B3CF14 /* AudioWaveformView.swift */; };
 		CD7DD157F5B33996F7FA5D8E /* FileSystemToolHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7878CFDA4C915D3023570D92 /* FileSystemToolHelpersTests.swift */; };
+		CDA6A7CF8189B49B21D7A64F /* VoiceSettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF637C730E241838C7548D72 /* VoiceSettingsController.swift */; };
 		D05DC3925D0CE7AE3CD912DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 963D29896D050E424A1F4A9A /* ClaudeModels.swift */; };
 		D65EDBCEDA29BA38056224D7 /* ListSchedulesTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03764AC97B0A74D6FAFAE57 /* ListSchedulesTool.swift */; };
 		DB6B707EC2B933CEB8DDD5B0 /* DismissTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42F0D8A51D3C989243B5DAF /* DismissTool.swift */; };
@@ -93,10 +99,12 @@
 		240A2BC5BE91EC59111BB7FC /* AgentTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTool.swift; sourceTree = "<group>"; };
 		36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TamagotchaiApp.swift; sourceTree = "<group>"; };
 		39BF415CCE6B24532C86B53B /* StreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamParserTests.swift; sourceTree = "<group>"; };
+		3AFDAAE592DC9D8AF0B29B87 /* KokoroManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroManager.swift; sourceTree = "<group>"; };
 		3EB817C959C551CC56FD772F /* BashToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashToolTests.swift; sourceTree = "<group>"; };
 		3FB29B0F1E450E5E8A53E226 /* GrepToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrepToolTests.swift; sourceTree = "<group>"; };
 		46B666BC978765216D62FF84 /* avatar_pack.riv */ = {isa = PBXFileReference; path = avatar_pack.riv; sourceTree = "<group>"; };
 		4AAE3B60D199496B2AD15707 /* WebFetchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFetchTool.swift; sourceTree = "<group>"; };
+		514A7D03CAF825914B6DD7B1 /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsView.swift; sourceTree = "<group>"; };
 		52B74160BBE6B75D3AA754C2 /* MascotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotView.swift; sourceTree = "<group>"; };
 		54066C4888E025A62763B481 /* ClaudeOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeOAuth.swift; sourceTree = "<group>"; };
 		57353C6F64FC4E0E86EFD1B5 /* CreateRoutineTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRoutineTool.swift; sourceTree = "<group>"; };
@@ -124,6 +132,7 @@
 		A42F0D8A51D3C989243B5DAF /* DismissTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DismissTool.swift; sourceTree = "<group>"; };
 		A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ADA90322492F1A2679940340 /* LsToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LsToolTests.swift; sourceTree = "<group>"; };
+		AF637C730E241838C7548D72 /* VoiceSettingsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsController.swift; sourceTree = "<group>"; };
 		B03764AC97B0A74D6FAFAE57 /* ListSchedulesTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListSchedulesTool.swift; sourceTree = "<group>"; };
 		B72494B058B18E81914F9612 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		B8480E13D5EBD03B8C4DEF80 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -153,6 +162,9 @@
 			files = (
 				705BF951EDBA3B84995D11FD /* RiveRuntime in Frameworks */,
 				36AE6F0084BDBABB7C84C713 /* Highlightr in Frameworks */,
+				924A63F67CB201E2EA0E2034 /* KokoroSwift in Frameworks */,
+				B1DFD1F470B86725D686F754 /* MLX in Frameworks */,
+				B1995D6F4543DEFEF5576AB0 /* MLXUtilsLibrary in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -194,8 +206,11 @@
 			isa = PBXGroup;
 			children = (
 				E6EF719041DBAA5054B3CF14 /* AudioWaveformView.swift */,
+				3AFDAAE592DC9D8AF0B29B87 /* KokoroManager.swift */,
 				7A32F1C2C32586F62BFFBA52 /* SpeechService.swift */,
 				7B8C7C8F12BBDF05D0B70365 /* VoiceService.swift */,
+				AF637C730E241838C7548D72 /* VoiceSettingsController.swift */,
+				514A7D03CAF825914B6DD7B1 /* VoiceSettingsView.swift */,
 			);
 			path = Voice;
 			sourceTree = "<group>";
@@ -429,6 +444,9 @@
 			packageProductDependencies = (
 				79428049BDEB372B1D6B128C /* RiveRuntime */,
 				6CC46E0EB5B907637FEDD4E2 /* Highlightr */,
+				F609933D31FA2FEA98F98AA6 /* KokoroSwift */,
+				D07D13FBDF32CCD0EFEC813F /* MLX */,
+				8AF07308F2217335407FE1F0 /* MLXUtilsLibrary */,
 			);
 			productName = Tamagotchai;
 			productReference = 76F26E815173BCF54B26DCB9 /* Tamagotchai.app */;
@@ -455,8 +473,11 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				2521E2D26130EC3CF50B0713 /* XCRemoteSwiftPackageReference "Highlightr" */,
+				C184267FA9F82298F0991C30 /* XCRemoteSwiftPackageReference "MLXUtilsLibrary" */,
 				E4ADB4162D6D639549F102EB /* XCRemoteSwiftPackageReference "NotchNotification" */,
 				7BA8563EBA26BBBAC9614799 /* XCRemoteSwiftPackageReference "rive-ios" */,
+				C41B84D5E8CB88DD2E33DACE /* XCRemoteSwiftPackageReference "kokoro-ios" */,
+				92112FD1CC7D16E8CD3DC911 /* XCRemoteSwiftPackageReference "mlx-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -546,6 +567,7 @@
 				DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */,
 				6E304973699DF7CAB9D7744A /* GlassButton.swift in Sources */,
 				4291668781FF244B5A7EE081 /* GrepTool.swift in Sources */,
+				2A9492B440B332C9BA04AF09 /* KokoroManager.swift in Sources */,
 				D65EDBCEDA29BA38056224D7 /* ListSchedulesTool.swift in Sources */,
 				8729975310E65C0400B1320C /* LoginView.swift in Sources */,
 				BF625A9182A6B37D87392EF3 /* LoginWindowController.swift in Sources */,
@@ -569,6 +591,8 @@
 				82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */,
 				20010341711C692BD019245D /* ToolIndicatorView.swift in Sources */,
 				8E97C2C79DF917846C49C27C /* VoiceService.swift in Sources */,
+				CDA6A7CF8189B49B21D7A64F /* VoiceSettingsController.swift in Sources */,
+				4A828D5A83EBAAAB377315FB /* VoiceSettingsView.swift in Sources */,
 				5BFE8EA7252582A6DE513D3D /* WebFetchTool.swift in Sources */,
 				6B4AE21C4C60C7A3879FFAC1 /* WriteTool.swift in Sources */,
 			);
@@ -694,7 +718,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -751,7 +775,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -849,6 +873,30 @@
 				minimumVersion = 6.18.0;
 			};
 		};
+		92112FD1CC7D16E8CD3DC911 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 0.30.2;
+			};
+		};
+		C184267FA9F82298F0991C30 /* XCRemoteSwiftPackageReference "MLXUtilsLibrary" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mlalma/MLXUtilsLibrary.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.0.6;
+			};
+		};
+		C41B84D5E8CB88DD2E33DACE /* XCRemoteSwiftPackageReference "kokoro-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mlalma/kokoro-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.11;
+			};
+		};
 		E4ADB4162D6D639549F102EB /* XCRemoteSwiftPackageReference "NotchNotification" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Lakr233/NotchNotification";
@@ -869,6 +917,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7BA8563EBA26BBBAC9614799 /* XCRemoteSwiftPackageReference "rive-ios" */;
 			productName = RiveRuntime;
+		};
+		8AF07308F2217335407FE1F0 /* MLXUtilsLibrary */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C184267FA9F82298F0991C30 /* XCRemoteSwiftPackageReference "MLXUtilsLibrary" */;
+			productName = MLXUtilsLibrary;
+		};
+		D07D13FBDF32CCD0EFEC813F /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 92112FD1CC7D16E8CD3DC911 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		F609933D31FA2FEA98F98AA6 /* KokoroSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C41B84D5E8CB88DD2E33DACE /* XCRemoteSwiftPackageReference "kokoro-ios" */;
+			productName = KokoroSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

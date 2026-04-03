@@ -25,6 +25,10 @@ struct TamagotchaiApp: App {
                 PermissionsWindowController.show()
             }
 
+            Button("Voice Settings…") {
+                VoiceSettingsController.show()
+            }
+
             Divider()
 
             if isLoggedIn {

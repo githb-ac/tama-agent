@@ -1,23 +1,24 @@
 import AVFoundation
+import KokoroSwift
 import os
 
-/// Text-to-speech service using AVSpeechSynthesizer.
-/// Prefers Zoe Premium > Zoe Enhanced > Samantha Enhanced > system default.
+/// Text-to-speech service using Kokoro TTS.
 /// Supports streaming: feed text chunks as they arrive, sentences are spoken as they complete.
-/// Uses SSML, pitch/rate variation, and natural pauses for conversational speech.
+/// Audio generation runs off the main thread to avoid blocking the UI.
 @MainActor
-final class SpeechService: NSObject, @unchecked Sendable {
+final class SpeechService {
     static let shared = SpeechService()
 
     private let logger = Logger(subsystem: "com.unstablemind.tamagotchai", category: "speech")
-    private let synthesizer = AVSpeechSynthesizer()
-    private var voice: AVSpeechSynthesisVoice?
 
-    // MARK: - Speech Tuning
+    // MARK: - Persistent Audio Engine
 
-    /// Speech rate — premium voices handle their own prosody, so we use the default rate
-    /// and let the voice's built-in intelligence handle pacing, pitch, and pauses naturally.
-    private let speechRate: Float = AVSpeechUtteranceDefaultSpeechRate
+    /// Single persistent audio engine — reused across all playback sessions.
+    /// Recreating AVAudioEngine per play causes zombie engine instances that
+    /// fight for audio resources and cause stuttering on subsequent plays.
+    private let audioEngine = AVAudioEngine()
+    private let playerNode = AVAudioPlayerNode()
+    private var engineStarted = false
 
     // MARK: - Streaming State
 
@@ -36,14 +37,30 @@ final class SpeechService: NSObject, @unchecked Sendable {
     /// Whether the stream has ended (no more chunks coming).
     private var streamEnded = false
 
-    override private init() {
-        super.init()
-        synthesizer.delegate = self
-        resolveVoice()
+    /// Queue of audio buffers waiting to be played sequentially.
+    private var bufferQueue: [AVAudioPCMBuffer] = []
+
+    /// Whether the player is currently playing a buffer.
+    private var isPlaying = false
+
+    /// Active generation task (so we can cancel on stop).
+    private var generationTask: Task<Void, Never>?
+
+    // MARK: - Constants
+
+    /// Max characters per chunk for Kokoro TTS. Kokoro's token limit is 510,
+    /// and ~200 chars provides a safe margin accounting for phonemization variance.
+    private static let maxChunkChars = 200
+
+    /// Minimum fragment length — shorter pieces are merged to avoid choppy playback.
+    private static let minFragmentLength = 20
+
+    private init() {
+        audioEngine.attach(playerNode)
     }
 
-    /// Whether the synthesizer is currently speaking.
-    var isSpeaking: Bool { synthesizer.isSpeaking }
+    /// Whether the service is currently speaking.
+    var isSpeaking: Bool { isPlaying || !bufferQueue.isEmpty || pendingUtterances > 0 }
 
     // MARK: - Streaming TTS
 
@@ -107,20 +124,43 @@ final class SpeechService: NSObject, @unchecked Sendable {
 
     /// Stops any ongoing speech immediately.
     func stop() {
-        let wasSpeaking = synthesizer.isSpeaking || isStreaming
+        let wasSpeaking = isStreaming || isPlaying
         isStreaming = false
         streamEnded = false
         streamBuffer = ""
         pendingUtterances = 0
 
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
-        }
+        generationTask?.cancel()
+        generationTask = nil
+
+        stopPlayback()
 
         if wasSpeaking {
             let cb = streamCompletion
             streamCompletion = nil
             cb?()
+        }
+    }
+
+    private func stopPlayback() {
+        bufferQueue.removeAll()
+        isPlaying = false
+        playerNode.stop()
+    }
+
+    // MARK: - Audio Engine Management
+
+    private func ensureEngineRunning(format: AVAudioFormat) {
+        audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: format)
+
+        if !audioEngine.isRunning {
+            do {
+                try audioEngine.start()
+                engineStarted = true
+                logger.debug("Audio engine started")
+            } catch {
+                logger.error("Audio engine failed to start: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -156,13 +196,16 @@ final class SpeechService: NSObject, @unchecked Sendable {
         }
     }
 
-    // MARK: - Intelligent Utterance Creation
+    // MARK: - Utterance Creation
 
-    /// Splits text into individual sentences and enqueues each with tailored prosody.
+    /// Splits text into speakable chunks, merges short fragments, and enqueues each.
     private func enqueueSentences(from text: String) {
         let sentences = splitIntoSentences(text)
-        for sentence in sentences {
-            let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chunks = splitLongSentences(sentences)
+        let merged = mergeShortFragments(chunks)
+
+        for chunk in merged {
+            let trimmed = chunk.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }
             enqueueUtterance(trimmed)
         }
@@ -179,27 +222,159 @@ final class SpeechService: NSObject, @unchecked Sendable {
                 sentences.append(s)
             }
         }
-        // Fallback: if enumeration returned nothing, treat entire text as one sentence
         if sentences.isEmpty, !text.isEmpty {
             sentences.append(text)
         }
         return sentences
     }
 
-    /// Creates and enqueues a single utterance. Premium voices handle their own prosody —
-    /// pitch variation, comma pauses, question intonation — so we just set rate and let it go.
-    private func enqueueUtterance(_ text: String) {
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = voice
-        utterance.rate = speechRate
-        utterance.pitchMultiplier = 1.0
-        utterance.volume = 1.0
-        utterance.preUtteranceDelay = 0
-        utterance.postUtteranceDelay = 0
+    /// Splits any sentence exceeding maxChunkChars at clause boundaries.
+    private func splitLongSentences(_ sentences: [String]) -> [String] {
+        var result: [String] = []
+        for sentence in sentences {
+            let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.count <= Self.maxChunkChars {
+                result.append(trimmed)
+            } else {
+                result.append(contentsOf: splitAtClauseBoundaries(trimmed))
+            }
+        }
+        return result
+    }
 
+    /// Splits a long sentence at comma, semicolon, or dash boundaries.
+    private func splitAtClauseBoundaries(_ text: String) -> [String] {
+        // swiftlint:disable:next force_try
+        let pattern = try! NSRegularExpression(pattern: "[,;—–]\\s+", options: [])
+        let nsText = text as NSString
+        let matches = pattern.matches(in: text, options: [], range: NSRange(location: 0, length: nsText.length))
+
+        guard !matches.isEmpty else {
+            // No clause boundaries — hard split at maxChunkChars
+            return stride(from: 0, to: text.count, by: Self.maxChunkChars).map { start in
+                let startIdx = text.index(text.startIndex, offsetBy: start)
+                let endIdx = text.index(startIdx, offsetBy: Self.maxChunkChars, limitedBy: text.endIndex) ?? text
+                    .endIndex
+                return String(text[startIdx ..< endIdx])
+            }
+        }
+
+        var chunks: [String] = []
+        var current = ""
+        var lastEnd = 0
+
+        for match in matches {
+            let boundary = match.range.location + match.range.length
+            let piece = nsText.substring(with: NSRange(location: lastEnd, length: boundary - lastEnd))
+            if current.count + piece.count > Self.maxChunkChars, !current.isEmpty {
+                chunks.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
+                current = piece
+            } else {
+                current += piece
+            }
+            lastEnd = boundary
+        }
+
+        // Remainder
+        if lastEnd < nsText.length {
+            current += nsText.substring(from: lastEnd)
+        }
+        if !current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            chunks.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+
+        return chunks
+    }
+
+    /// Merges fragments shorter than minFragmentLength with adjacent chunks.
+    private func mergeShortFragments(_ chunks: [String]) -> [String] {
+        guard chunks.count > 1 else { return chunks }
+        var result: [String] = []
+        var accumulator = ""
+
+        for chunk in chunks {
+            if accumulator.isEmpty {
+                accumulator = chunk
+            } else if accumulator.count < Self.minFragmentLength || chunk.count < Self.minFragmentLength {
+                accumulator += " " + chunk
+            } else {
+                result.append(accumulator)
+                accumulator = chunk
+            }
+        }
+        if !accumulator.isEmpty {
+            result.append(accumulator)
+        }
+        return result
+    }
+
+    /// Enqueues text for TTS generation on a background thread, then queues playback.
+    private func enqueueUtterance(_ text: String) {
         pendingUtterances += 1
         logger.info("Enqueuing: \(text.prefix(60))…")
-        synthesizer.speak(utterance)
+
+        let manager = KokoroManager.shared
+        guard manager.isReady else {
+            logger.warning("Kokoro not ready, skipping: \(text.prefix(40))…")
+            utteranceDidFinish()
+            return
+        }
+
+        // Capture engine state on MainActor, then generate off main thread
+        guard let snapshot = manager.captureGenerationContext() else {
+            logger.warning("No voice/engine available, skipping: \(text.prefix(40))…")
+            utteranceDidFinish()
+            return
+        }
+
+        generationTask = Task {
+            let result: AVAudioPCMBuffer? = await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let buffer = KokoroManager.generateAudioBufferOffMain(text: text, context: snapshot)
+                    continuation.resume(returning: buffer)
+                }
+            }
+
+            guard !Task.isCancelled else { return }
+
+            if let result {
+                bufferQueue.append(result)
+                playNextBuffer()
+            } else {
+                logger.warning("Kokoro generation failed, skipping: \(text.prefix(40))…")
+                utteranceDidFinish()
+            }
+        }
+    }
+
+    /// Decrements pending count and checks for stream completion.
+    private func utteranceDidFinish() {
+        pendingUtterances = max(0, pendingUtterances - 1)
+        if pendingUtterances == 0, streamEnded {
+            completeStream()
+        }
+    }
+
+    /// Plays the next buffer in the queue if nothing is currently playing.
+    private func playNextBuffer() {
+        guard !isPlaying, !bufferQueue.isEmpty else { return }
+        isPlaying = true
+
+        let buffer = bufferQueue.removeFirst()
+        ensureEngineRunning(format: buffer.format)
+
+        playerNode.scheduleBuffer(buffer) { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isPlaying = false
+                self.utteranceDidFinish()
+
+                if !self.bufferQueue.isEmpty {
+                    self.playNextBuffer()
+                }
+            }
+        }
+        playerNode.play()
     }
 
     private func completeStream() {
@@ -208,39 +383,6 @@ final class SpeechService: NSObject, @unchecked Sendable {
         let cb = streamCompletion
         streamCompletion = nil
         cb?()
-    }
-
-    // MARK: - Voice Resolution
-
-    /// Picks the best available en-US voice in priority order.
-    private func resolveVoice() {
-        let enUS = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "en-US" }
-
-        let preferences: [(name: String, quality: AVSpeechSynthesisVoiceQuality)] = [
-            ("Zoe", .premium),
-            ("Zoe", .enhanced),
-            ("Samantha", .premium),
-            ("Samantha", .enhanced),
-            ("Ava", .premium),
-            ("Ava", .enhanced),
-        ]
-
-        for pref in preferences {
-            if let match = enUS.first(where: { $0.name.contains(pref.name) && $0.quality == pref.quality }) {
-                voice = match
-                logger.info("Selected voice: \(match.name) (\(String(describing: match.quality)))")
-                return
-            }
-        }
-
-        if let enhanced = enUS.first(where: { $0.quality == .enhanced }) {
-            voice = enhanced
-            logger.info("Fallback voice: \(enhanced.name)")
-            return
-        }
-
-        voice = AVSpeechSynthesisVoice(language: "en-US")
-        logger.info("Using default en-US voice")
     }
 
     // MARK: - Text Cleaning
@@ -319,33 +461,5 @@ final class SpeechService: NSObject, @unchecked Sendable {
         )
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-// MARK: - AVSpeechSynthesizerDelegate
-
-extension SpeechService: AVSpeechSynthesizerDelegate {
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer,
-        didFinish utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            pendingUtterances = max(0, pendingUtterances - 1)
-
-            if pendingUtterances == 0, streamEnded {
-                completeStream()
-            }
-        }
-    }
-
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer,
-        didCancel utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            pendingUtterances = max(0, pendingUtterances - 1)
-        }
     }
 }
