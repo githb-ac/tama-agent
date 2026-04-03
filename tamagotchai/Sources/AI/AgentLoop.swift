@@ -48,8 +48,6 @@ final class AgentLoop {
             try Task.checkCancellation()
             logger.info("Agent loop turn \(turn + 1)")
 
-            nonisolated(unsafe) var hasDismissTool = false
-
             let response: ClaudeResponse
             do {
                 response = try await claude.sendWithTools(
@@ -64,9 +62,7 @@ final class AgentLoop {
                             onEvent(.textDelta(text))
                         }
                         if case let .toolUseStart(id, name) = event {
-                            if name == "dismiss" {
-                                hasDismissTool = true
-                            } else {
+                            if name != "dismiss" {
                                 onEvent(.toolStart(name: name, id: id))
                             }
                         }

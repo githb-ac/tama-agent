@@ -196,6 +196,9 @@ final class GrepTool: AgentTool, @unchecked Sendable {
         return [(path: filePath, relativePath: relPath)]
     }
 
+    /// Maximum file size to search (10 MB). Files larger than this are skipped.
+    private static let maxFileSize = 10 * 1024 * 1024
+
     private func searchFiles(
         _ files: [(path: String, relativePath: String)],
         regex: NSRegularExpression,
@@ -206,6 +209,18 @@ final class GrepTool: AgentTool, @unchecked Sendable {
         var matchCount = 0
 
         for file in files {
+            // Skip files that are too large to avoid unbounded memory usage.
+            if let attrs = try? fm.attributesOfItem(atPath: file.path),
+               let fileSize = attrs[.size] as? Int,
+               fileSize > Self.maxFileSize
+            {
+                logger
+                    .warning(
+                        "Skipping file larger than \(Self.maxFileSize) bytes: \(file.relativePath, privacy: .public)"
+                    )
+                continue
+            }
+
             guard let data = fm.contents(atPath: file.path),
                   let content = String(data: data, encoding: .utf8) else { continue }
 

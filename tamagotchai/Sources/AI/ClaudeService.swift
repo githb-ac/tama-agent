@@ -194,10 +194,10 @@ final class ClaudeService {
             forHTTPHeaderField: "Content-Type"
         )
         request.setValue(
-            "claude-cli/2.1.75",
+            "tamagotchai/1.0",
             forHTTPHeaderField: "User-Agent"
         )
-        request.setValue("cli", forHTTPHeaderField: "x-app")
+        request.setValue("tamagotchai", forHTTPHeaderField: "x-app")
 
         var systemBlocks: [[String: Any]] = []
 

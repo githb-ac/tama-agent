@@ -43,6 +43,8 @@ final class BashTool: AgentTool, @unchecked Sendable {
     private static let keepHeadLines = 200
     private static let keepTailLines = 200
     private static let defaultTimeoutMs = 120_000
+    /// Maximum output size in bytes (10 MB).
+    private static let maxOutputBytes = 10 * 1024 * 1024
 
     func execute(args: [String: Any]) async throws -> String {
         guard let command = args["command"] as? String else {
@@ -52,16 +54,35 @@ final class BashTool: AgentTool, @unchecked Sendable {
         let timeoutMs = args["timeout"] as? Int ?? Self.defaultTimeoutMs
         logger.info("Executing bash command: \(command.prefix(200), privacy: .public), timeout: \(timeoutMs)ms")
         let (process, pipe) = try makeProcess(command: command)
+
+        let readHandle = pipe.fileHandleForReading
         let readTask = Task.detached { () -> Data in
-            pipe.fileHandleForReading.readDataToEndOfFile()
+            Self.readIncrementally(from: readHandle, limit: Self.maxOutputBytes)
         }
 
         let didTimeout = await waitWithTimeout(
             process: process,
+            pipe: pipe,
             seconds: Double(timeoutMs) / 1000.0
         )
 
-        let outputData = await readTask.value
+        // Give the read task a short deadline (5s) after the process exits
+        // so child processes holding the pipe don't block us forever.
+        let outputData: Data = await withTaskGroup(of: Data?.self) { group in
+            group.addTask { await readTask.value }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                return nil
+            }
+            for await value in group {
+                if let value {
+                    group.cancelAll()
+                    return value
+                }
+            }
+            return await readTask.value
+        }
+
         let exitCode = process.terminationStatus
         let rawOutput = String(data: outputData, encoding: .utf8) ?? ""
         logger
@@ -79,11 +100,29 @@ final class BashTool: AgentTool, @unchecked Sendable {
 
     // MARK: - Helpers
 
+    /// Reads from a file handle incrementally up to `limit` bytes.
+    private static func readIncrementally(from handle: FileHandle, limit: Int) -> Data {
+        var result = Data()
+        let chunkSize = 65536
+        while true {
+            let chunk = handle.readData(ofLength: chunkSize)
+            if chunk.isEmpty { break }
+            result.append(chunk)
+            if result.count >= limit {
+                result = result.prefix(limit)
+                break
+            }
+        }
+        return result
+    }
+
     /// Creates and starts a `Process` for the given shell command.
+    /// Launches in a new process group so the entire tree can be killed on timeout.
     private func makeProcess(command: String) throws -> (Process, Pipe) {
         let process = Process()
+        // Use setsid wrapper to launch in a new session/process group
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-c", command]
+        process.arguments = ["-c", "exec setsid /bin/bash -c " + shellEscape(command)]
         process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         process.environment = ProcessInfo.processInfo.environment.merging(
             ["TERM": "dumb"]
@@ -102,9 +141,15 @@ final class BashTool: AgentTool, @unchecked Sendable {
         return (process, pipe)
     }
 
+    /// Shell-escape a string for embedding in a bash -c argument.
+    private func shellEscape(_ str: String) -> String {
+        "'" + str.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+    }
+
     /// Waits for the process to exit, terminating it if the timeout is exceeded.
+    /// Closes the pipe on timeout so the read task can complete.
     /// Returns `true` if the process timed out.
-    private func waitWithTimeout(process: Process, seconds: Double) async -> Bool {
+    private func waitWithTimeout(process: Process, pipe: Pipe, seconds: Double) async -> Bool {
         await withUnsafeContinuation { (continuation: UnsafeContinuation<Bool, Never>) in
             let group = DispatchGroup()
             group.enter()
@@ -115,11 +160,19 @@ final class BashTool: AgentTool, @unchecked Sendable {
             }
 
             if group.wait(timeout: .now() + seconds) == .timedOut {
-                process.terminate()
+                // Kill the process group so child processes don't hold the pipe open.
+                let pid = process.processIdentifier
+                kill(-pid, SIGTERM)
+
                 // Allow graceful shutdown, then force kill.
-                if group.wait(timeout: .now() + 2) == .timedOut, process.isRunning {
-                    process.interrupt()
+                if group.wait(timeout: .now() + 2) == .timedOut {
+                    kill(-pid, SIGKILL)
+                    process.terminate()
                 }
+
+                // Close the pipe so the read task returns.
+                try? pipe.fileHandleForReading.close()
+
                 continuation.resume(returning: true)
             } else {
                 continuation.resume(returning: false)

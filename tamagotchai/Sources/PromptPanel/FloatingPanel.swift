@@ -825,7 +825,6 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         // Target ~800 chars/sec; pop proportional to elapsed time
         let charsPerSecond: Double = 800
         let count = max(1, min(characterQueue.count, Int(charsPerSecond * elapsed)))
-        let chars = characterQueue.prefix(count)
         characterQueue.removeFirst(count)
         let typedCount = pendingMarkdown.count - characterQueue.count
         displayedMarkdown = String(pendingMarkdown.prefix(typedCount))

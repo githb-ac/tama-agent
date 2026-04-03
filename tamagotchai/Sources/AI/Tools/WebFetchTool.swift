@@ -13,6 +13,16 @@ final class WebFetchTool: AgentTool, @unchecked Sendable {
     let description =
         "Fetch and read content from a URL. Returns text content with HTML tags stripped."
 
+    /// Maximum response body size (10 MB).
+    private static let maxResponseBytes = 10 * 1024 * 1024
+
+    /// Shared session with redirect delegate — reused across calls.
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30
+        return URLSession(configuration: config, delegate: SafeRedirectDelegate.shared, delegateQueue: nil)
+    }()
+
     init() {}
 
     // MARK: - Input Schema
@@ -50,6 +60,14 @@ final class WebFetchTool: AgentTool, @unchecked Sendable {
             throw WebFetchError.invalidURL(urlString)
         }
 
+        // Only allow http and https schemes.
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else {
+            logger.error("Blocked scheme for URL: \(urlString, privacy: .public)")
+            throw WebFetchError.blockedHost(url.scheme ?? "unknown")
+        }
+
         // SSRF protection — block private/local addresses.
         do {
             try validateHost(url)
@@ -58,13 +76,9 @@ final class WebFetchTool: AgentTool, @unchecked Sendable {
             throw error
         }
 
-        // Configure URLSession with 30s timeout.
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 30
-        let session = URLSession(configuration: config)
-
-        // Fetch the URL.
-        let (data, response) = try await session.data(from: url)
+        // Stream the response with a byte limit to avoid unbounded memory usage.
+        let request = URLRequest(url: url)
+        let (bytes, response) = try await session.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw WebFetchError.invalidResponse
@@ -75,7 +89,17 @@ final class WebFetchTool: AgentTool, @unchecked Sendable {
             return "HTTP error: \(httpResponse.statusCode)"
         }
 
-        guard var text = String(data: data, encoding: .utf8) else {
+        // Read incrementally up to maxResponseBytes.
+        var collected = Data()
+        for try await byte in bytes {
+            collected.append(byte)
+            if collected.count >= Self.maxResponseBytes {
+                logger.warning("Response exceeded \(Self.maxResponseBytes) byte limit, truncating")
+                break
+            }
+        }
+
+        guard var text = String(data: collected, encoding: .utf8) else {
             throw WebFetchError.requestFailed(
                 "Unable to decode response as UTF-8"
             )
@@ -126,38 +150,162 @@ final class WebFetchTool: AgentTool, @unchecked Sendable {
         }
 
         let blockedHosts: Set<String> = [
-            "localhost", "127.0.0.1", "0.0.0.0", "::1",
+            "localhost", "0.0.0.0",
         ]
         if blockedHosts.contains(host) {
             throw WebFetchError.blockedHost(host)
         }
 
-        if isPrivateIP(host) {
+        if isPrivateIPv4(host) || isPrivateIPv6(host) {
             throw WebFetchError.blockedHost(host)
         }
     }
 
-    /// Returns true if the given string is an IPv4 address in a private range.
-    private func isPrivateIP(_ host: String) -> Bool {
+    /// Returns true if the given string is an IPv4 address in a private/reserved range.
+    private func isPrivateIPv4(_ host: String) -> Bool {
         let parts = host.split(separator: ".").compactMap { UInt8($0) }
         guard parts.count == 4 else { return false }
 
-        // 10.0.0.0 – 10.255.255.255
+        // 127.0.0.0/8 — full loopback range
+        if parts[0] == 127 {
+            return true
+        }
+
+        // 10.0.0.0/8
         if parts[0] == 10 {
             return true
         }
 
-        // 172.16.0.0 – 172.31.255.255
+        // 172.16.0.0/12
         if parts[0] == 172, (16 ... 31).contains(parts[1]) {
             return true
         }
 
-        // 192.168.0.0 – 192.168.255.255
+        // 192.168.0.0/16
         if parts[0] == 192, parts[1] == 168 {
             return true
         }
 
+        // 169.254.0.0/16 — link-local
+        if parts[0] == 169, parts[1] == 254 {
+            return true
+        }
+
+        // 0.0.0.0/8
+        if parts[0] == 0 {
+            return true
+        }
+
         return false
+    }
+
+    /// Returns true if the given string is an IPv6 address in a private/reserved range.
+    private func isPrivateIPv6(_ host: String) -> Bool {
+        // Strip brackets if present (e.g. from URL host)
+        let cleaned = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+
+        // ::1 loopback
+        if cleaned == "::1" {
+            return true
+        }
+
+        // IPv4-mapped IPv6 (::ffff:x.x.x.x)
+        let lowerCleaned = cleaned.lowercased()
+        if lowerCleaned.hasPrefix("::ffff:") {
+            let ipv4Part = String(lowerCleaned.dropFirst(7))
+            return isPrivateIPv4(ipv4Part)
+        }
+
+        // Expand to check prefix-based ranges
+        let expanded = expandIPv6(lowerCleaned)
+        guard !expanded.isEmpty else { return false }
+
+        // fe80::/10 — link-local
+        if expanded.hasPrefix("fe8") || expanded.hasPrefix("fe9") ||
+            expanded.hasPrefix("fea") || expanded.hasPrefix("feb")
+        {
+            return true
+        }
+
+        // fc00::/7 — unique local addresses
+        if expanded.hasPrefix("fc") || expanded.hasPrefix("fd") {
+            return true
+        }
+
+        return false
+    }
+
+    /// Minimal IPv6 expansion — returns the full lowercased hex string (no colons) or empty on parse failure.
+    private func expandIPv6(_ addr: String) -> String {
+        var parts = addr.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+
+        // Handle :: expansion
+        if let emptyIdx = parts.firstIndex(where: { $0.isEmpty }) {
+            // Count existing non-empty groups
+            let nonEmpty = parts.filter { !$0.isEmpty }
+            let missing = 8 - nonEmpty.count
+            if missing > 0 {
+                var expanded: [String] = []
+                for (i, part) in parts.enumerated() {
+                    if part.isEmpty, i == emptyIdx {
+                        for _ in 0 ..< missing {
+                            expanded.append("0000")
+                        }
+                    } else if !part.isEmpty {
+                        expanded.append(part)
+                    }
+                }
+                parts = expanded
+            }
+        }
+
+        guard parts.count == 8 else { return "" }
+
+        return parts.map { group in
+            let padded = String(repeating: "0", count: max(0, 4 - group.count)) + group
+            return padded.suffix(4).lowercased()
+        }.joined()
+    }
+
+    /// Validates a redirect target URL against the same SSRF rules.
+    static func isAllowedRedirectTarget(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else { return false }
+
+        guard let host = url.host?.lowercased() else { return false }
+
+        let blockedHosts: Set<String> = ["localhost", "0.0.0.0"]
+        if blockedHosts.contains(host) { return false }
+
+        let checker = WebFetchTool()
+        if checker.isPrivateIPv4(host) || checker.isPrivateIPv6(host) {
+            return false
+        }
+
+        return true
+    }
+}
+
+// MARK: - Safe Redirect Delegate
+
+/// URLSession delegate that validates redirect targets against SSRF rules.
+private final class SafeRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    static let shared = SafeRedirectDelegate()
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let url = request.url, WebFetchTool.isAllowedRedirectTarget(url) else {
+            logger.warning("Blocked redirect to: \(request.url?.absoluteString ?? "nil", privacy: .public)")
+            completionHandler(nil)
+            return
+        }
+        completionHandler(request)
     }
 }
 

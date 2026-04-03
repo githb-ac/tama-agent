@@ -40,7 +40,6 @@
 		8729975310E65C0400B1320C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8480E13D5EBD03B8C4DEF80 /* LoginView.swift */; };
 		8E97C2C79DF917846C49C27C /* VoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8C7C8F12BBDF05D0B70365 /* VoiceService.swift */; };
 		901334BE0CF6E826E9BB12FB /* CreateReminderTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D5939D90AA79794265711D7 /* CreateReminderTool.swift */; };
-		9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE7C40F97BE3426E3660AB3 /* ContentView.swift */; };
 		92232CF2F234B831875BD6C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */; };
 		924A63F67CB201E2EA0E2034 /* KokoroSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F609933D31FA2FEA98F98AA6 /* KokoroSwift */; };
 		9901C15CD95D5870199CCBE7 /* ScheduleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73C96EF3465C96FC3D56A82 /* ScheduleStore.swift */; };
@@ -121,7 +120,6 @@
 		7F3B330A8C52FA34054BDE60 /* AgentLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLoop.swift; sourceTree = "<group>"; };
 		85A1ADE518F5788DF19D46F2 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
 		85A77BA6215B29CCDAF7A013 /* DeleteScheduleTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteScheduleTool.swift; sourceTree = "<group>"; };
-		8FE7C40F97BE3426E3660AB3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		95C1ED0AF6B8F14C84DABB06 /* ResponseTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseTextView.swift; sourceTree = "<group>"; };
 		963D29896D050E424A1F4A9A /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		9971134D5A8CC271EC9E1952 /* ClaudeModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelsTests.swift; sourceTree = "<group>"; };
@@ -251,7 +249,6 @@
 		8077CA5E556903A0D0571113 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				8FE7C40F97BE3426E3660AB3 /* ContentView.swift */,
 				36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */,
 				C0A38FAB5D2E77DF1F9CCB07 /* AI */,
 				364CB48AD3B9C615CABAF942 /* Login */,
@@ -474,7 +471,6 @@
 			packageReferences = (
 				2521E2D26130EC3CF50B0713 /* XCRemoteSwiftPackageReference "Highlightr" */,
 				C184267FA9F82298F0991C30 /* XCRemoteSwiftPackageReference "MLXUtilsLibrary" */,
-				E4ADB4162D6D639549F102EB /* XCRemoteSwiftPackageReference "NotchNotification" */,
 				7BA8563EBA26BBBAC9614799 /* XCRemoteSwiftPackageReference "rive-ios" */,
 				C41B84D5E8CB88DD2E33DACE /* XCRemoteSwiftPackageReference "kokoro-ios" */,
 				92112FD1CC7D16E8CD3DC911 /* XCRemoteSwiftPackageReference "mlx-swift" */,
@@ -556,7 +552,6 @@
 				D05DC3925D0CE7AE3CD912DC /* ClaudeModels.swift in Sources */,
 				BD02EB2A0950C8C2F57A56E9 /* ClaudeOAuth.swift in Sources */,
 				AF8519C7A25F8C02BCB1A68E /* ClaudeService.swift in Sources */,
-				9083FBEDFC3FECC68503375C /* ContentView.swift in Sources */,
 				901334BE0CF6E826E9BB12FB /* CreateReminderTool.swift in Sources */,
 				7A6992BC438DDC623751B16B /* CreateRoutineTool.swift in Sources */,
 				A98305F6A26FB76A56F2E811 /* DeleteScheduleTool.swift in Sources */,
@@ -895,14 +890,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.0.11;
-			};
-		};
-		E4ADB4162D6D639549F102EB /* XCRemoteSwiftPackageReference "NotchNotification" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Lakr233/NotchNotification";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.1;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

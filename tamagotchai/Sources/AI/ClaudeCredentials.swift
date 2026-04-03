@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import os
+import Security
 
 private let logger = Logger(
     subsystem: "com.unstablemind.tamagotchai",
@@ -21,26 +22,72 @@ struct OAuthCredentials: Codable {
 /// File-based persistence for Claude OAuth credentials.
 ///
 /// Stores credentials as an encrypted JSON file in Application Support,
-/// avoiding macOS Keychain password prompts that occur on every rebuild
-/// during development (Keychain ties access to the exact code signature).
+/// using a random 256-bit key stored in the macOS Keychain.
 enum ClaudeCredentials {
     private static let fileName = "claude-oauth.enc"
+    private static let keychainService = "com.unstablemind.tamagotchai"
+    private static let keychainAccount = "encryption-key"
 
-    // A stable device-derived key so credentials survive rebuilds.
-    // Falls back to a hardcoded key if the hardware UUID is unavailable.
+    /// Retrieves or generates the encryption key from the macOS Keychain.
     // swiftlint:disable:next modifier_order
     private nonisolated(unsafe) static var encryptionKey: SymmetricKey = {
-        if let uuid = getHardwareUUID() {
-            let seed = "com.unstablemind.tamagotchai.\(uuid)"
-            let hash = SHA256.hash(data: Data(seed.utf8))
-            return SymmetricKey(data: hash)
-        } else {
-            logger.warning("Hardware UUID unavailable, using fallback encryption key")
-            let seed = "com.unstablemind.tamagotchai.fallback-key"
-            let hash = SHA256.hash(data: Data(seed.utf8))
-            return SymmetricKey(data: hash)
+        if let existingKey = loadKeyFromKeychain() {
+            return existingKey
         }
+
+        // Generate a new random 256-bit key and store it.
+        let newKey = SymmetricKey(size: .bits256)
+        if storeKeyInKeychain(newKey) {
+            logger.info("Generated and stored new encryption key in Keychain")
+        } else {
+            logger.error("Failed to store encryption key in Keychain — credentials will not persist across installs")
+        }
+        return newKey
     }()
+
+    // MARK: - Keychain
+
+    private static func loadKeyFromKeychain() -> SymmetricKey? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: keychainAccount,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        guard status == errSecSuccess, let data = result as? Data, data.count == 32 else {
+            if status != errSecItemNotFound {
+                logger.warning("Keychain read failed with status: \(status)")
+            }
+            return nil
+        }
+
+        return SymmetricKey(data: data)
+    }
+
+    private static func storeKeyInKeychain(_ key: SymmetricKey) -> Bool {
+        let keyData = key.withUnsafeBytes { Data($0) }
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: keychainAccount,
+            kSecValueData as String: keyData,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+        ]
+
+        // Delete any existing item first.
+        SecItemDelete(query as CFDictionary)
+
+        let status = SecItemAdd(query as CFDictionary, nil)
+        return status == errSecSuccess
+    }
+
+    // MARK: - File Storage
 
     private static func credentialsURL() throws -> URL {
         let appSupport = try FileManager.default.url(
@@ -118,21 +165,5 @@ enum ClaudeCredentials {
         } catch {
             logger.error("Failed to delete credentials: \(error.localizedDescription)")
         }
-    }
-
-    /// Reads the hardware UUID from IOKit (stable across rebuilds).
-    private static func getHardwareUUID() -> String? {
-        let service = IOServiceGetMatchingService(
-            kIOMainPortDefault,
-            IOServiceMatching("IOPlatformExpertDevice")
-        )
-        guard service != IO_OBJECT_NULL else { return nil }
-        defer { IOObjectRelease(service) }
-
-        let key = kIOPlatformUUIDKey as CFString
-        guard let uuid = IORegistryEntryCreateCFProperty(service, key, kCFAllocatorDefault, 0)?
-            .takeRetainedValue() as? String
-        else { return nil }
-        return uuid
     }
 }

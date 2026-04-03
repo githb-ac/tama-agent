@@ -20,10 +20,6 @@ final class StreamParser {
     private var toolJsonParts: [String] = []
     private var isServerTool = false
 
-    // Server tool result accumulation
-    private var serverResultToolUseId: String?
-    private var serverResultContent: [[String: Any]] = []
-
     // Text accumulation
     private var textParts: [String] = []
 

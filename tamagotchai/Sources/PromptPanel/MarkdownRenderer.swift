@@ -60,9 +60,6 @@ enum MarkdownRenderer {
         let result = NSMutableAttributedString()
         let lines = markdown.components(separatedBy: "\n")
         var idx = 0
-        /// Tracks whether the previous block was a blank line so we
-        /// don't stack extra paragraph spacing on top of explicit gaps.
-        var prevWasBlank = false
 
         while idx < lines.count {
             let line = lines[idx]
@@ -83,14 +80,12 @@ enum MarkdownRenderer {
                     idx += 1
                 }
                 appendCodeBlock(to: result, content: codeLines.joined(separator: "\n"), language: lang)
-                prevWasBlank = false
                 continue
             }
 
             // Empty line — skip consecutive blanks; a single blank is
             // represented implicitly via paragraphSpacing on the surrounding blocks.
             if line.trimmingCharacters(in: .whitespaces).isEmpty {
-                prevWasBlank = true
                 idx += 1
                 continue
             }
@@ -100,7 +95,6 @@ enum MarkdownRenderer {
                 let hashes = line[headingMatch].count(where: { $0 == "#" })
                 let text = String(line[headingMatch.upperBound...])
                 appendHeading(to: result, text: text, level: hashes)
-                prevWasBlank = false
                 idx += 1
                 continue
             }
@@ -108,7 +102,6 @@ enum MarkdownRenderer {
             // Horizontal rule: ---, ***, ___, or with spaces
             if isHorizontalRule(line) {
                 appendHorizontalRule(to: result)
-                prevWasBlank = false
                 idx += 1
                 continue
             }
@@ -124,7 +117,6 @@ enum MarkdownRenderer {
                     idx += 1
                 }
                 appendTable(to: result, lines: tableLines)
-                prevWasBlank = false
                 continue
             }
 
@@ -136,7 +128,6 @@ enum MarkdownRenderer {
                     idx += 1
                 }
                 appendBlockquote(to: result, lines: quoteLines)
-                prevWasBlank = false
                 continue
             }
 
@@ -148,7 +139,6 @@ enum MarkdownRenderer {
                     idx += 1
                 }
                 appendListBlock(to: result, lines: listLines)
-                prevWasBlank = false
                 continue
             }
 
@@ -160,13 +150,11 @@ enum MarkdownRenderer {
                     idx += 1
                 }
                 appendListBlock(to: result, lines: listLines)
-                prevWasBlank = false
                 continue
             }
 
             // Regular paragraph
             appendParagraph(to: result, text: line)
-            prevWasBlank = false
             idx += 1
         }
 
