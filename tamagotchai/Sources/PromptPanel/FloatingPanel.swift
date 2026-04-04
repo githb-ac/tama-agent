@@ -18,39 +18,39 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     override var canBecomeMain: Bool { true }
 
     /// The panel width.
-    private let panelWidth: CGFloat = 680
+    let panelWidth: CGFloat = 680
 
     /// The input bar height.
-    private let inputHeight: CGFloat = 58
+    let inputHeight: CGFloat = 58
 
     /// Max height for the response area.
-    private let responseMaxHeight: CGFloat = 400
+    let responseMaxHeight: CGFloat = 400
 
     /// The stored top edge so the panel grows downward, not upward.
-    private var topY: CGFloat = 0
+    var topY: CGFloat = 0
 
     /// Tracks whether we're currently dismissing to avoid re-entrant calls.
-    private var isDismissing = false
+    var isDismissing = false
 
     /// Raw markdown text accumulated during streaming.
-    private var rawMarkdown = ""
+    var rawMarkdown = ""
 
     // MARK: - Character queue streaming
 
     /// Characters waiting to be "typed" onto screen.
-    private var characterQueue: [Character] = []
+    var characterQueue: [Character] = []
 
     /// The markdown text displayed so far (typed out character by character).
-    private var displayedMarkdown = ""
+    var displayedMarkdown = ""
 
     /// Full raw text received from API so far.
-    private var pendingMarkdown = ""
+    var pendingMarkdown = ""
 
     /// Accumulated attributed string from all previous conversation turns.
-    private var conversationAttributed = NSMutableAttributedString()
+    var conversationAttributed = NSMutableAttributedString()
 
     /// Length of conversation history in the text storage (streaming appends after this).
-    private var conversationBaseLength = 0
+    var conversationBaseLength = 0
 
     /// Blinking cursor glyph shown at the end of streaming text.
     private static let streamingCursorGlyph = "▍"
@@ -65,31 +65,34 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     private var displayLink: CADisplayLink?
 
     /// Timestamp of the last display link frame (for calculating elapsed time).
-    private var lastFrameTime: CFTimeInterval = 0
+    var lastFrameTime: CFTimeInterval = 0
 
     /// Timestamp of the last full markdown re-render.
-    private var lastFullRenderTime: CFTimeInterval = 0
+    var lastFullRenderTime: CFTimeInterval = 0
 
     /// Whether the stream has finished delivering all deltas.
-    private var streamFinished = false
+    var streamFinished = false
 
     /// Length of displayedMarkdown at last markdown re-render.
-    private var lastRenderLength = 0
+    var lastRenderLength = 0
 
     /// Last computed target height to skip no-op updates.
-    private var lastTargetHeight: CGFloat = 0
+    var lastTargetHeight: CGFloat = 0
 
     /// Whether auto-scroll is active. Disabled when user scrolls up, re-enabled on new message.
-    private var autoScrollEnabled = true
+    var autoScrollEnabled = true
 
     /// Once the panel reaches max height, it stays there for the session.
-    private var reachedMaxHeight = false
+    var reachedMaxHeight = false
 
     /// Whether the panel was activated by voice (shows waveform).
-    private var isVoiceActivated = false
+    var isVoiceActivated = false
+
+    /// Whether the session was started via voice (persists across capture/response cycles).
+    var isVoiceSession = false
 
     /// Audio waveform view shown floating above the panel during voice mode.
-    private lazy var audioWaveformView: AudioWaveformView = {
+    lazy var audioWaveformView: AudioWaveformView = {
         let v = AudioWaveformView()
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
@@ -97,7 +100,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// Child window that hosts the waveform above the panel (no background).
-    private lazy var waveformWindow: NSWindow = {
+    lazy var waveformWindow: NSWindow = {
         let w = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 120, height: 24),
             styleMask: [.borderless],
@@ -117,7 +120,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// Tool activity indicator shown during tool execution.
-    private lazy var toolIndicatorView: ToolIndicatorView = {
+    lazy var toolIndicatorView: ToolIndicatorView = {
         let v = ToolIndicatorView()
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
@@ -125,7 +128,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// Skeleton shimmer view shown while waiting for first token.
-    private lazy var skeletonView: SkeletonView = {
+    lazy var skeletonView: SkeletonView = {
         let v = SkeletonView()
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
@@ -154,7 +157,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// Container for the tab bar so we can show/hide it as a group with consistent padding.
-    private lazy var tabBarContainer: NSView = {
+    lazy var tabBarContainer: NSView = {
         let v = NSView()
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
@@ -167,7 +170,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         return v
     }()
 
-    private lazy var sessionListView: SessionListView = {
+    lazy var sessionListView: SessionListView = {
         let v = SessionListView()
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
@@ -181,10 +184,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// Height constraint for the session list.
-    private var sessionListHeightConstraint: NSLayoutConstraint?
+    var sessionListHeightConstraint: NSLayoutConstraint?
 
     /// Height constraint for the response scroll view.
-    private var responseHeightConstraint: NSLayoutConstraint?
+    var responseHeightConstraint: NSLayoutConstraint?
 
     /// Called when the user presses Return in the text field.
     var onSubmit: ((String) -> Void)?
@@ -212,7 +215,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// The animated mascot inline in the input row.
     let mascot = MascotView()
 
-    private lazy var inputField: NSTextField = {
+    lazy var inputField: NSTextField = {
         let field = WhiteCursorTextField()
         field.delegate = self
         field.placeholderString = "Ask anything…"
@@ -231,7 +234,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// Invisible spacer that reserves space for the mascot child window.
-    private lazy var mascotSpacer: NSView = {
+    lazy var mascotSpacer: NSView = {
         let v = NSView()
         v.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -252,7 +255,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         return stack
     }()
 
-    private lazy var dividerContainer: NSView = {
+    lazy var dividerContainer: NSView = {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
 
@@ -272,7 +275,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// The response text view — read-only, selectable, scrollable, rich-text for markdown.
-    private lazy var responseTextView: ResponseTextView = {
+    lazy var responseTextView: ResponseTextView = {
         let textView = ResponseTextView()
         textView.isEditable = false
         textView.isSelectable = true
@@ -299,7 +302,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// The scroll view wrapping the response text.
-    private lazy var responseScrollView: ConditionalScrollView = {
+    lazy var responseScrollView: ConditionalScrollView = {
         let scrollView = ConditionalScrollView()
         scrollView.documentView = responseTextView
         scrollView.hasVerticalScroller = true
@@ -437,7 +440,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     private let toolIndicatorBottomInset: CGFloat = 36
 
     /// The intrinsic height of the tab bar container (top padding + control + bottom padding).
-    private let tabBarHeight: CGFloat = 44
+    let tabBarHeight: CGFloat = 44
 
     @objc private func tabBarChanged(_ sender: NSSegmentedControl) {
         ButtonSound.shared.play()
@@ -872,7 +875,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }
 
     /// Creates a right-aligned chat bubble attributed string for the user's message.
-    private func makeUserBubble(_ text: String) -> NSAttributedString {
+    func makeUserBubble(_ text: String) -> NSAttributedString {
         let bubbleFont = NSFont.systemFont(ofSize: 18, weight: .regular)
         let hPad: CGFloat = 14
         let vPad: CGFloat = 8
@@ -989,7 +992,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }
 
     // Stops and releases the display link.
-    private func stopDisplayLink() {
+    func stopDisplayLink() {
         displayLink?.invalidate()
         displayLink = nil
     }
@@ -1009,7 +1012,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }
 
     /// Stops the cursor blink and hides the cursor.
-    private func stopCursorBlink() {
+    func stopCursorBlink() {
         cursorBlinkTimer?.invalidate()
         cursorBlinkTimer = nil
         cursorVisible = false
@@ -1049,7 +1052,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }
 
     /// Whether finishTyping has already been called for the current response.
-    private var typingFinished = false
+    var typingFinished = false
 
     /// Final render when all characters have been typed.
     private func finishTyping() {
@@ -1206,7 +1209,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }
 
     /// Scrolls to the absolute bottom without any animation.
-    private func scrollToBottomInstantly() {
+    func scrollToBottomInstantly() {
         let clipView = responseScrollView.contentView
         let docHeight = responseTextView.frame.height
         let visibleHeight = clipView.bounds.height
@@ -1328,364 +1331,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         }
     }
 
-    /// Restores a full conversation from saved messages into the response area.
-    func restoreConversation(messages: [ChatMessage]) {
-        // Reset streaming/conversation state
-        rawMarkdown = ""
-        pendingMarkdown = ""
-        displayedMarkdown = ""
-        conversationAttributed = NSMutableAttributedString()
-        conversationBaseLength = 0
-        characterQueue = []
-        streamFinished = false
-        typingFinished = false
-        lastRenderLength = 0
-        lastTargetHeight = 0
-        reachedMaxHeight = false
-        autoScrollEnabled = true
-        stopDisplayLink()
-        stopCursorBlink()
-        responseTextView.removeAllCopyButtons()
-
-        // Build the full conversation attributed string
-        for message in messages {
-            switch message.role {
-            case .user:
-                let text = message.content.compactMap { block -> String? in
-                    if case let .text(t) = block { return t }
-                    return nil
-                }.joined()
-                if !text.isEmpty {
-                    conversationAttributed.append(makeUserBubble(text))
-                }
-            case .assistant:
-                let text = message.content.compactMap { block -> String? in
-                    if case let .text(t) = block { return t }
-                    return nil
-                }.joined()
-                if !text.isEmpty {
-                    conversationAttributed.append(MarkdownRenderer.render(text))
-                }
-            }
-        }
-
-        // If nothing displayable, show an empty state
-        if conversationAttributed.length == 0 {
-            let emptyAttrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 14, weight: .medium),
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .paragraphStyle: {
-                    let style = NSMutableParagraphStyle()
-                    style.alignment = .center
-                    return style
-                }(),
-            ]
-            conversationAttributed.append(
-                NSAttributedString(string: "\nNo content in this session.", attributes: emptyAttrs)
-            )
-        }
-
-        conversationBaseLength = conversationAttributed.length
-
-        // Set the text storage
-        responseTextView.textStorage?.setAttributedString(conversationAttributed)
-
-        // Hide session list, show response area (keep tab bar visible for navigation)
-        sessionListView.isHidden = true
-        sessionListHeightConstraint?.constant = 0
-        dividerContainer.isHidden = false
-        responseScrollView.isHidden = false
-        dividerContainer.alphaValue = 1
-        responseScrollView.alphaValue = 1
-
-        // Size the panel dynamically based on content
-        responseTextView.layoutManager?.ensureLayout(
-            for: responseTextView.textContainer!
-        )
-        let contentHeight = responseTextView.layoutManager?.usedRect(
-            for: responseTextView.textContainer!
-        ).height ?? 0
-        let textInset = responseTextView.textContainerInset.height * 2
-        let targetHeight = min(contentHeight + textInset, responseMaxHeight)
-
-        if targetHeight >= responseMaxHeight {
-            reachedMaxHeight = true
-        }
-        responseHeightConstraint?.constant = targetHeight
-        responseScrollView.hasVerticalScroller = targetHeight >= responseMaxHeight
-        lastTargetHeight = targetHeight
-
-        // Account for tab bar if it's visible (e.g. navigating from session list)
-        let tabBarExtra: CGFloat = tabBarContainer.isHidden ? 0 : tabBarHeight
-        let panelHeight = inputHeight + 1 + tabBarExtra + targetHeight
-        let newOriginY = topY - panelHeight
-        setFrame(
-            NSRect(x: frame.origin.x, y: newOriginY, width: panelWidth, height: panelHeight),
-            display: true
-        )
-
-        // Force layout before positioning mascot so spacer has its final screen coordinates
-        contentView?.layoutSubtreeIfNeeded()
-
-        responseTextView.updateCodeBlockOverlays()
-        positionMascotOverSpacer()
-        invalidateShadow()
-        scrollToBottomInstantly()
-        makeFirstResponder(inputField)
-        mascot.setState(.idle)
-    }
-
     // MARK: - Text change tracking
 
     func controlTextDidChange(_: Notification) {
         let text = inputField.stringValue
         onTextChanged?(text)
-    }
-
-    // MARK: - Voice Mode
-
-    /// Whether the session was started via voice (persists across capture/response cycles).
-    private(set) var isVoiceSession = false
-
-    /// Updates the audio waveform level during voice capture.
-    func setAudioLevel(_ rms: Double) {
-        guard isVoiceActivated else { return }
-        audioWaveformView.setAudioLevel(rms)
-    }
-
-    /// Inserts transcribed voice text into the input field and scrolls to the end.
-    func insertVoiceText(_ text: String) {
-        inputField.stringValue = text
-        // Scroll the field editor to the end so the latest dictated text is visible
-        if let editor = inputField.currentEditor() {
-            editor.selectedRange = NSRange(location: (text as NSString).length, length: 0)
-            editor.scrollRangeToVisible(editor.selectedRange)
-        }
-    }
-
-    /// Hides the waveform after voice capture completes (entering response streaming).
-    /// Keeps voice session active — placeholder stays voice-appropriate.
-    func hideWaveform() {
-        guard isVoiceActivated else { return }
-        isVoiceActivated = false
-        dismissWaveformWindow()
-        // During voice session response, show empty placeholder (not "Ask anything")
-        if isVoiceSession {
-            inputField.placeholderString = ""
-        }
-    }
-
-    /// Shows the voice UI — waveform visible, placeholder invites typing or speaking.
-    func showVoiceFollowUp() {
-        isVoiceActivated = true
-        isVoiceSession = true
-        inputField.placeholderString = "Type or say anything you like…"
-        showWaveformWindow()
-        makeFirstResponder(inputField)
-    }
-
-    /// Smoothly hides the waveform when the user starts typing during voice follow-up.
-    func hideWaveformForTyping() {
-        guard isVoiceActivated else { return }
-        isVoiceActivated = false
-        inputField.placeholderString = "Ask anything…"
-        isVoiceSession = false
-
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.15
-            self.waveformWindow.animator().alphaValue = 0
-        } completionHandler: {
-            MainActor.assumeIsolated { [weak self] in
-                guard let self else { return }
-                dismissWaveformWindow()
-                waveformWindow.alphaValue = 1
-            }
-        }
-    }
-
-    /// Ends the voice session entirely (panel dismiss or explicit stop).
-    func endVoiceSession() {
-        isVoiceActivated = false
-        isVoiceSession = false
-        dismissWaveformWindow()
-        inputField.placeholderString = "Ask anything…"
-    }
-
-    // MARK: - Waveform Window
-
-    private func showWaveformWindow() {
-        audioWaveformView.startAnimating()
-        positionWaveformWindow()
-        waveformWindow.alphaValue = 0
-        addChildWindow(waveformWindow, ordered: .above)
-        waveformWindow.orderFront(nil)
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.15
-            self.waveformWindow.animator().alphaValue = 1
-        }
-    }
-
-    private func dismissWaveformWindow() {
-        audioWaveformView.stopAnimating()
-        removeChildWindow(waveformWindow)
-        waveformWindow.orderOut(nil)
-    }
-
-    /// Positions the waveform window centered above the panel.
-    private func positionWaveformWindow() {
-        let waveformWidth: CGFloat = 120
-        let waveformHeight: CGFloat = 24
-        let gap: CGFloat = 6
-        let x = frame.midX - waveformWidth / 2
-        let y = frame.maxY + gap
-        waveformWindow.setFrame(
-            NSRect(x: x, y: y, width: waveformWidth, height: waveformHeight),
-            display: true
-        )
-    }
-
-    // MARK: - Presentation
-
-    func present() {
-        panelLogger.info("Panel presenting")
-        isDismissing = false
-
-        // Reset state
-        if !isVoiceActivated {
-            dismissWaveformWindow()
-            inputField.placeholderString = "Ask anything…"
-        }
-        inputField.stringValue = ""
-        rawMarkdown = ""
-        pendingMarkdown = ""
-        displayedMarkdown = ""
-        conversationAttributed = NSMutableAttributedString()
-        conversationBaseLength = 0
-        characterQueue = []
-        streamFinished = false
-        typingFinished = false
-        lastRenderLength = 0
-        lastTargetHeight = 0
-        reachedMaxHeight = false
-        autoScrollEnabled = true
-        stopDisplayLink()
-        stopCursorBlink()
-        lastFrameTime = 0
-        lastFullRenderTime = 0
-        skeletonView.stopAnimating()
-        skeletonView.isHidden = true
-        toolIndicatorView.isHidden = true
-        toolIndicatorView.alphaValue = 0
-        responseScrollView.contentInsets.bottom = 0
-        responseTextView.textStorage?.setAttributedString(NSAttributedString())
-        responseTextView.removeAllCopyButtons()
-        dividerContainer.isHidden = true
-        responseScrollView.isHidden = true
-        responseHeightConstraint?.constant = 0
-        sessionListView.isHidden = true
-        sessionListView.alphaValue = 1
-        sessionListHeightConstraint?.constant = 0
-        mascot.setState(.idle)
-
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
-        let screenFrame = screen.visibleFrame
-
-        let originX = screenFrame.midX - panelWidth / 2
-        topY = screenFrame.midY + screenFrame.height * 0.15
-
-        let panelFrame = NSRect(
-            x: originX,
-            y: topY - inputHeight,
-            width: panelWidth,
-            height: inputHeight
-        )
-        setFrame(panelFrame, display: true)
-
-        alphaValue = 0
-        makeKeyAndOrderFront(nil)
-        NSApp.activate()
-        makeFirstResponder(inputField)
-
-        // Position mascot child window over the spacer
-        mascot.window.alphaValue = 0
-        addChildWindow(mascot.window, ordered: .above)
-        positionMascotOverSpacer()
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.15
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            self.animator().alphaValue = 1
-            self.mascot.window.animator().alphaValue = 1
-        }
-    }
-
-    /// Positions the mascot child window directly over the spacer view.
-    private func positionMascotOverSpacer() {
-        let spacerInWindow = mascotSpacer.convert(mascotSpacer.bounds, to: nil)
-        let spacerOnScreen = convertToScreen(spacerInWindow)
-        mascot.window.setFrameOrigin(spacerOnScreen.origin)
-    }
-
-    func dismiss() {
-        guard !isDismissing else { return }
-        panelLogger.info("Panel dismissing")
-        isDismissing = true
-        endVoiceSession()
-        onDismiss?()
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.12
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            self.animator().alphaValue = 0
-            self.mascot.window.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
-            guard let self else { return }
-            DispatchQueue.main.async {
-                self.removeChildWindow(self.mascot.window)
-                self.mascot.window.orderOut(nil)
-                self.orderOut(nil)
-                self.isDismissing = false
-            }
-        }
-    }
-}
-
-// MARK: - Error Text Block
-
-/// NSTextBlock subclass that draws a tinted rounded-rect background with a subtle border.
-final class ErrorTextBlock: NSTextBlock {
-    private let tint: NSColor
-
-    init(tint: NSColor) {
-        self.tint = tint
-        super.init()
-        setContentWidth(100, type: .percentageValueType)
-        setWidth(12, type: .absoluteValueType, for: .padding)
-        setWidth(14, type: .absoluteValueType, for: .padding, edge: .minX)
-        setWidth(14, type: .absoluteValueType, for: .padding, edge: .maxX)
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func drawBackground(
-        withFrame frameRect: NSRect,
-        in controlView: NSView?,
-        characterRange _: NSRange,
-        layoutManager _: NSLayoutManager
-    ) {
-        let rect = frameRect.insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12)
-
-        // Tinted fill
-        tint.withAlphaComponent(0.25).setFill()
-        path.fill()
-
-        // Subtle border
-        tint.withAlphaComponent(0.45).setStroke()
-        path.lineWidth = 1
-        path.stroke()
     }
 }

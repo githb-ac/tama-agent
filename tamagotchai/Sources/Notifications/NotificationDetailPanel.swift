@@ -33,7 +33,7 @@ final class NotificationDetailPanel: NSPanel {
 
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight),
-            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -41,11 +41,6 @@ final class NotificationDetailPanel: NSPanel {
         isFloatingPanel = true
         level = .floating
         collectionBehavior = [.fullScreenAuxiliary, .canJoinAllSpaces]
-        titleVisibility = .hidden
-        titlebarAppearsTransparent = true
-        standardWindowButton(.closeButton)?.isHidden = true
-        standardWindowButton(.miniaturizeButton)?.isHidden = true
-        standardWindowButton(.zoomButton)?.isHidden = true
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         backgroundColor = .clear
@@ -53,8 +48,14 @@ final class NotificationDetailPanel: NSPanel {
         hasShadow = true
         animationBehavior = .utilityWindow
 
+        // Clear wrapper so the window itself is fully transparent.
+        let wrapper = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+        wrapper.wantsLayer = true
+        wrapper.layer?.backgroundColor = NSColor.clear.cgColor
+        contentView = wrapper
+
         // Glass background
-        let effectView = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
+        let effectView = NSVisualEffectView(frame: wrapper.bounds)
         effectView.material = .hudWindow
         effectView.state = .active
         effectView.blendingMode = .behindWindow
@@ -62,7 +63,14 @@ final class NotificationDetailPanel: NSPanel {
         effectView.layer?.cornerRadius = cornerRadius
         effectView.layer?.masksToBounds = true
         effectView.translatesAutoresizingMaskIntoConstraints = false
-        contentView = effectView
+        wrapper.addSubview(effectView)
+
+        NSLayoutConstraint.activate([
+            effectView.topAnchor.constraint(equalTo: wrapper.topAnchor),
+            effectView.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
+            effectView.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+            effectView.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+        ])
 
         // Title label
         let titleLabel = NSTextField(labelWithString: notifTitle)

@@ -46,6 +46,7 @@
 		7DB9FC5C51C07B7E936514DE /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E759ECBBE66883138A0117EB /* OnboardingView.swift */; };
 		82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */; };
 		8729975310E65C0400B1320C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8480E13D5EBD03B8C4DEF80 /* LoginView.swift */; };
+		8D9F09C1E8A54216E2A020EF /* ErrorTextBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AC7CBFF0791B31C08897F6 /* ErrorTextBlock.swift */; };
 		8E97C2C79DF917846C49C27C /* VoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8C7C8F12BBDF05D0B70365 /* VoiceService.swift */; };
 		901334BE0CF6E826E9BB12FB /* CreateReminderTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D5939D90AA79794265711D7 /* CreateReminderTool.swift */; };
 		92232CF2F234B831875BD6C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4DB345D78D7E1CC279B8F49 /* Assets.xcassets */; };
@@ -76,6 +77,7 @@
 		D0F97A57CD9D01B529B04D64 /* NotificationDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */; };
 		D65EDBCEDA29BA38056224D7 /* ListSchedulesTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03764AC97B0A74D6FAFAE57 /* ListSchedulesTool.swift */; };
 		DB6B707EC2B933CEB8DDD5B0 /* DismissTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42F0D8A51D3C989243B5DAF /* DismissTool.swift */; };
+		DD5A4E05EA926EE63BEF164F /* FloatingPanel+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C2EACA603F431FB7C2C363 /* FloatingPanel+Presentation.swift */; };
 		DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */; };
 		DDF98E5261E14B234ABB8722 /* notification.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 11578A4FDB7FF0EFD6F2D63B /* notification.mp3 */; };
 		E0368A9A22612832A2ECD645 /* EditTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F1811FA8B877563B30475E /* EditTool.swift */; };
@@ -122,8 +124,10 @@
 		514A7D03CAF825914B6DD7B1 /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsView.swift; sourceTree = "<group>"; };
 		52B74160BBE6B75D3AA754C2 /* MascotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotView.swift; sourceTree = "<group>"; };
 		54066C4888E025A62763B481 /* ClaudeOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeOAuth.swift; sourceTree = "<group>"; };
+		55AC7CBFF0791B31C08897F6 /* ErrorTextBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorTextBlock.swift; sourceTree = "<group>"; };
 		57353C6F64FC4E0E86EFD1B5 /* CreateRoutineTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRoutineTool.swift; sourceTree = "<group>"; };
 		57F4BC561B4564DD9CA624CF /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
+		64C2EACA603F431FB7C2C363 /* FloatingPanel+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FloatingPanel+Presentation.swift"; sourceTree = "<group>"; };
 		67E3EDA27B48F99948A62D34 /* PermissionsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsWindowController.swift; sourceTree = "<group>"; };
 		6D449322E10E6BB23C918E50 /* PromptPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptPanelController.swift; sourceTree = "<group>"; };
 		72A72ADD77BE83A08A891E51 /* BashTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashTool.swift; sourceTree = "<group>"; };
@@ -425,7 +429,9 @@
 			isa = PBXGroup;
 			children = (
 				D1F24AB3C7CB4EC331ED3728 /* AppError.swift */,
+				55AC7CBFF0791B31C08897F6 /* ErrorTextBlock.swift */,
 				D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */,
+				64C2EACA603F431FB7C2C363 /* FloatingPanel+Presentation.swift */,
 				1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */,
 				A2296DDD794CFDF886EDE508 /* PanelHelperViews.swift */,
 				6D449322E10E6BB23C918E50 /* PromptPanelController.swift */,
@@ -618,7 +624,9 @@
 				DB6B707EC2B933CEB8DDD5B0 /* DismissTool.swift in Sources */,
 				03CFEA300B65C7E61347DA09 /* DropdownPanelController.swift in Sources */,
 				E0368A9A22612832A2ECD645 /* EditTool.swift in Sources */,
+				8D9F09C1E8A54216E2A020EF /* ErrorTextBlock.swift in Sources */,
 				398C599C51D54FDA7B15A8E8 /* FindTool.swift in Sources */,
+				DD5A4E05EA926EE63BEF164F /* FloatingPanel+Presentation.swift in Sources */,
 				DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */,
 				6E304973699DF7CAB9D7744A /* GlassButton.swift in Sources */,
 				4291668781FF244B5A7EE081 /* GrepTool.swift in Sources */,

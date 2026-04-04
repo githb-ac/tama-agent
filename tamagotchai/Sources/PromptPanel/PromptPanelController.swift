@@ -21,6 +21,7 @@ final class PromptPanelController {
     private lazy var agentLoop = AgentLoop(
         workingDirectory: Self.ensureWorkspace()
     )
+    private var currentTab: SessionTab = .chats
     private var dismissObserver: NSObjectProtocol?
 
     /// Returns ~/Documents/Tamagotchai, creating it if needed.
@@ -214,6 +215,7 @@ final class PromptPanelController {
 
     /// Handles tab changes in the session list.
     private func handleTabChanged(_ tab: SessionTab) {
+        currentTab = tab
         let groups: [(label: String, sessions: [ChatSession])] = switch tab {
         case .chats:
             SessionStore.shared.allSessionsGroupedByDate()
@@ -237,7 +239,7 @@ final class PromptPanelController {
         }
     }
 
-    /// Deletes a session and refreshes the list.
+    /// Deletes a session and refreshes the list for the current tab.
     private func deleteSession(_ session: ChatSession) {
         logger.info("Deleting session '\(session.title)'")
         SessionStore.shared.delete(id: session.id)
@@ -248,13 +250,8 @@ final class PromptPanelController {
             conversationHistory = []
         }
 
-        // Refresh the list
-        let groups = SessionStore.shared.allSessionsGroupedByDate()
-        if groups.isEmpty {
-            panel?.showSessionList([], emptyMessage: "No conversations yet. Start chatting with Tama!")
-        } else {
-            panel?.showSessionList(groups)
-        }
+        // Refresh the list for the current tab
+        handleTabChanged(currentTab)
     }
 
     /// Saves the current conversation as a session.

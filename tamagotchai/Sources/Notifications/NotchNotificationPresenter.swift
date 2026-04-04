@@ -94,21 +94,26 @@ enum NotchNotificationPresenter {
 
         let panel = NSPanel(
             contentRect: NSRect(x: originX, y: hiddenY, width: toastWidth, height: toastHeight),
-            styleMask: [.nonactivatingPanel, .fullSizeContentView],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         panel.isFloatingPanel = true
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = false
         panel.hasShadow = true
         panel.backgroundColor = .clear
         panel.isOpaque = false
+
+        // Clear wrapper so the window itself is fully transparent.
+        let wrapper = NSView(frame: NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight))
+        wrapper.wantsLayer = true
+        wrapper.layer?.backgroundColor = NSColor.clear.cgColor
+
         // Glass background.
-        let effectView = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight))
+        let effectView = NSVisualEffectView(frame: wrapper.bounds)
+        effectView.autoresizingMask = [.width, .height]
         effectView.material = .hudWindow
         effectView.state = .active
         effectView.blendingMode = .behindWindow
@@ -122,7 +127,8 @@ enum NotchNotificationPresenter {
         contentView.frame = NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight)
         effectView.addSubview(contentView)
 
-        panel.contentView = effectView
+        wrapper.addSubview(effectView)
+        panel.contentView = wrapper
         panel.orderFrontRegardless()
 
         activePanel = panel
