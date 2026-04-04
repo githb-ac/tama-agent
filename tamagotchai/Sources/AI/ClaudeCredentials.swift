@@ -30,7 +30,6 @@ enum ClaudeCredentials {
 
     // Retrieves or generates the encryption key from the macOS Keychain.
     // Shared with ProviderStore for consistent encryption.
-    // swiftlint:disable:next modifier_order
     nonisolated(unsafe) static var sharedEncryptionKey: SymmetricKey = {
         if let existingKey = loadKeyFromKeychain() {
             return existingKey

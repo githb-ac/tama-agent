@@ -59,10 +59,7 @@ final class ClaudeService {
         let model = currentModel
         logger.info("sendWithTools — model: \(model.id), messages: \(messages.count), tools: \(tools.count)")
 
-        let token = try await ProviderStore.shared.validAccessToken(for: model.provider)
-
         return try await streamOpenAIRequest(
-            token: token,
             model: model,
             messages: messages,
             tools: tools,
@@ -101,13 +98,13 @@ final class ClaudeService {
     // MARK: - OpenAI-Compatible Streaming (Moonshot)
 
     private func streamOpenAIRequest(
-        token: String,
         model: ModelInfo,
         messages: [[String: Any]],
         tools: [[String: Any]],
         systemPrompt: String?,
         onEvent: @escaping @Sendable (StreamEvent) -> Void
     ) async throws -> ClaudeResponse {
+        let token = try await ProviderStore.shared.validAccessToken(for: model.provider)
         let request = try buildOpenAIRequest(
             token: token,
             model: model,

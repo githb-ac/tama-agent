@@ -75,6 +75,7 @@
 		B1DFD1F470B86725D686F754 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = D07D13FBDF32CCD0EFEC813F /* MLX */; };
 		B46B0E4F8F6EACB819134DEA /* LsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6FEB4F6520174E8D9A991F /* LsTool.swift */; };
 		B4DDABF96AB6246F02380857 /* ToolRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC77E55006FD9A55C6508DBA /* ToolRegistryTests.swift */; };
+		BA51EF9DD17CDEA3B34B19A4 /* FloatingPanel+Lists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7946CAB43CCA77FF2A5AE12F /* FloatingPanel+Lists.swift */; };
 		BF625A9182A6B37D87392EF3 /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 180872F509A230A812485204 /* LoginWindowController.swift */; };
 		C047E42DD4B026F582DFFDF6 /* ReadTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BCE6A076A69299A2B92B673 /* ReadTool.swift */; };
 		C10EA6F9E96084609564E571 /* MascotState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3CD99D66F6E1E5354B61F26 /* MascotState.swift */; };
@@ -92,6 +93,7 @@
 		DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */; };
 		DDF98E5261E14B234ABB8722 /* notification.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 11578A4FDB7FF0EFD6F2D63B /* notification.mp3 */; };
 		E0368A9A22612832A2ECD645 /* EditTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F1811FA8B877563B30475E /* EditTool.swift */; };
+		E3899F6F0A0ECB82D7385786 /* FloatingPanel+Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E76A466146DEF7D799463D /* FloatingPanel+Response.swift */; };
 		E39D6A235CBEA18B5907E2E6 /* MenuBarMood.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F6D951AE065F8C9D50F7534 /* MenuBarMood.swift */; };
 		E3A8828582665AE5DD36D50F /* LsToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA90322492F1A2679940340 /* LsToolTests.swift */; };
 		E53464559DF16636B3AA3F97 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */; };
@@ -157,6 +159,7 @@
 		76F26E815173BCF54B26DCB9 /* Tamagotchai.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tamagotchai.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7878CFDA4C915D3023570D92 /* FileSystemToolHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSystemToolHelpersTests.swift; sourceTree = "<group>"; };
 		79334AAFB8659DA675AEED17 /* FindToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindToolTests.swift; sourceTree = "<group>"; };
+		7946CAB43CCA77FF2A5AE12F /* FloatingPanel+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FloatingPanel+Lists.swift"; sourceTree = "<group>"; };
 		7A32F1C2C32586F62BFFBA52 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
 		7B8C7C8F12BBDF05D0B70365 /* VoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceService.swift; sourceTree = "<group>"; };
 		7D5939D90AA79794265711D7 /* CreateReminderTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateReminderTool.swift; sourceTree = "<group>"; };
@@ -170,6 +173,7 @@
 		8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDetailPanel.swift; sourceTree = "<group>"; };
 		91C0CA906FA582CAF90E4D89 /* CircleCloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleCloseButton.swift; sourceTree = "<group>"; };
 		95C1ED0AF6B8F14C84DABB06 /* ResponseTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseTextView.swift; sourceTree = "<group>"; };
+		95E76A466146DEF7D799463D /* FloatingPanel+Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FloatingPanel+Response.swift"; sourceTree = "<group>"; };
 		963D29896D050E424A1F4A9A /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		9971134D5A8CC271EC9E1952 /* ClaudeModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelsTests.swift; sourceTree = "<group>"; };
 		9BCE6A076A69299A2B92B673 /* ReadTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadTool.swift; sourceTree = "<group>"; };
@@ -508,7 +512,9 @@
 				D1F24AB3C7CB4EC331ED3728 /* AppError.swift */,
 				55AC7CBFF0791B31C08897F6 /* ErrorTextBlock.swift */,
 				D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */,
+				7946CAB43CCA77FF2A5AE12F /* FloatingPanel+Lists.swift */,
 				64C2EACA603F431FB7C2C363 /* FloatingPanel+Presentation.swift */,
+				95E76A466146DEF7D799463D /* FloatingPanel+Response.swift */,
 				1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */,
 				A2296DDD794CFDF886EDE508 /* PanelHelperViews.swift */,
 				6D449322E10E6BB23C918E50 /* PromptPanelController.swift */,
@@ -708,7 +714,9 @@
 				E0368A9A22612832A2ECD645 /* EditTool.swift in Sources */,
 				8D9F09C1E8A54216E2A020EF /* ErrorTextBlock.swift in Sources */,
 				398C599C51D54FDA7B15A8E8 /* FindTool.swift in Sources */,
+				BA51EF9DD17CDEA3B34B19A4 /* FloatingPanel+Lists.swift in Sources */,
 				DD5A4E05EA926EE63BEF164F /* FloatingPanel+Presentation.swift in Sources */,
+				E3899F6F0A0ECB82D7385786 /* FloatingPanel+Response.swift in Sources */,
 				DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */,
 				6E304973699DF7CAB9D7744A /* GlassButton.swift in Sources */,
 				4291668781FF244B5A7EE081 /* GrepTool.swift in Sources */,
