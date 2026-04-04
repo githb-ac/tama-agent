@@ -156,6 +156,9 @@ final class PromptPanelController {
         newPanel.onDeleteSession = { [weak self] session in
             self?.deleteSession(session)
         }
+        newPanel.onTabChanged = { [weak self] tab in
+            self?.handleTabChanged(tab)
+        }
         newPanel.onInterrupt = { [weak self] in
             guard let self else { return false }
             return interruptAgent()
@@ -200,6 +203,23 @@ final class PromptPanelController {
 
         // Show the conversation in the panel
         panel?.restoreConversation(messages: session.messages)
+    }
+
+    /// Handles tab changes in the session list.
+    private func handleTabChanged(_ tab: SessionTab) {
+        let groups: [(label: String, sessions: [ChatSession])] = switch tab {
+        case .all:
+            SessionStore.shared.allSessionsGroupedByDate()
+        case .reminders:
+            SessionStore.shared.sessionsGroupedByDate(type: .reminders)
+        case .routines:
+            SessionStore.shared.sessionsGroupedByDate(type: .routines)
+        }
+        if groups.isEmpty {
+            panel?.hideSessionList()
+        } else {
+            panel?.showSessionList(groups)
+        }
     }
 
     /// Deletes a session and refreshes the list.

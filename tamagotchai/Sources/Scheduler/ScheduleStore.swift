@@ -157,6 +157,25 @@ final class ScheduleStore {
         // Notch notification for visual flair when screen is active
         NotchNotificationPresenter.showReminder(name: job.name, message: job.prompt)
 
+        // Persist as an individual reminder session
+        let reminderMessage = ChatMessage(
+            id: UUID(),
+            role: .assistant,
+            content: [.text("**Reminder: \(job.name)**\n\n\(job.prompt)")],
+            timestamp: Date()
+        )
+        let reminderSession = ChatSession(
+            id: UUID(),
+            title: job.name,
+            messages: [reminderMessage],
+            createdAt: Date(),
+            updatedAt: Date(),
+            moodIcon: "⏰",
+            sessionType: .reminders
+        )
+        SessionStore.shared.save(session: reminderSession)
+        SessionStore.shared.pruneExcess(type: .reminders, max: 25)
+
         // System notification for Notification Center history
         let content = UNMutableNotificationContent()
         content.title = "Tamagotchai Reminder"
@@ -216,6 +235,31 @@ final class ScheduleStore {
                 logger.error("Routine '\(job.name)' failed: \(error.localizedDescription)")
                 resultText = "Routine failed: \(error.localizedDescription)"
             }
+
+            // Persist as an individual routine session
+            let userMsg = ChatMessage(
+                id: UUID(),
+                role: .user,
+                content: [.text(job.prompt)],
+                timestamp: Date()
+            )
+            let assistantMsg = ChatMessage(
+                id: UUID(),
+                role: .assistant,
+                content: [.text("**Routine: \(job.name)**\n\n\(resultText)")],
+                timestamp: Date()
+            )
+            let routineSession = ChatSession(
+                id: UUID(),
+                title: job.name,
+                messages: [userMsg, assistantMsg],
+                createdAt: Date(),
+                updatedAt: Date(),
+                moodIcon: "⚡",
+                sessionType: .routines
+            )
+            SessionStore.shared.save(session: routineSession)
+            SessionStore.shared.pruneExcess(type: .routines, max: 25)
 
             // Notch notification for visual flair when screen is active
             NotchNotificationPresenter.showRoutineResult(name: job.name, result: resultText)

@@ -1,5 +1,12 @@
 import AppKit
 
+/// The active tab filter for the session list.
+enum SessionTab: Int {
+    case all = 0
+    case reminders = 1
+    case routines = 2
+}
+
 /// Displays grouped chat sessions in a scrollable list below the input field.
 final class SessionListView: NSView {
     /// Called when a session is clicked.

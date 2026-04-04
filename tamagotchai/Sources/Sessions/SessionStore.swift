@@ -100,9 +100,15 @@ final class SessionStore {
         sessions.first { $0.id == id }
     }
 
-    /// Groups sessions by date: "Today", "This Week", "This Month", "Older".
+    /// Groups chat sessions by date: "Today", "This Week", "This Month", "Older".
     func allSessionsGroupedByDate() -> [(label: String, sessions: [ChatSession])] {
-        guard !sessions.isEmpty else { return [] }
+        sessionsGroupedByDate(type: .chat)
+    }
+
+    /// Groups sessions of a given type by date: "Today", "This Week", "This Month", "Older".
+    func sessionsGroupedByDate(type: SessionType) -> [(label: String, sessions: [ChatSession])] {
+        let filtered = sessions.filter { $0.sessionType == type }
+        guard !filtered.isEmpty else { return [] }
 
         let calendar = Calendar.current
         let now = Date()
@@ -117,7 +123,7 @@ final class SessionStore {
         var thisMonth: [ChatSession] = []
         var older: [ChatSession] = []
 
-        for session in sessions {
+        for session in filtered {
             if session.updatedAt >= startOfToday {
                 today.append(session)
             } else if session.updatedAt >= startOfWeek {
@@ -135,6 +141,18 @@ final class SessionStore {
         if !thisMonth.isEmpty { result.append(("This Month", thisMonth)) }
         if !older.isEmpty { result.append(("Older", older)) }
         return result
+    }
+
+    /// Deletes the oldest sessions of a given type when count exceeds `max`.
+    func pruneExcess(type: SessionType, max: Int) {
+        let matching = sessions.filter { $0.sessionType == type }
+            .sorted { $0.updatedAt > $1.updatedAt }
+        guard matching.count > max else { return }
+        let toDelete = matching.suffix(from: max)
+        for session in toDelete {
+            delete(id: session.id)
+        }
+        logger.info("Pruned \(toDelete.count) excess \(type.rawValue) sessions")
     }
 
     // MARK: - Storage Path

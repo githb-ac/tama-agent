@@ -133,6 +133,40 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// The session history list shown when the panel opens.
+    /// Tab bar for switching between All / Reminders / Routines.
+    private lazy var tabBar: NSSegmentedControl = {
+        let control = NSSegmentedControl(
+            labels: ["All", "Reminders", "Routines"],
+            trackingMode: .selectOne,
+            target: self,
+            action: #selector(tabBarChanged(_:))
+        )
+        control.selectedSegment = 0
+        control.segmentStyle = .texturedRounded
+        control.translatesAutoresizingMaskIntoConstraints = false
+        control.font = .systemFont(ofSize: 14, weight: .semibold)
+        control.wantsLayer = true
+        control.layer?.cornerRadius = 8
+        control.layer?.masksToBounds = true
+        control.layer?.backgroundColor = NSColor(white: 0.25, alpha: 1).cgColor
+        control.selectedSegmentBezelColor = NSColor(white: 0.38, alpha: 1)
+        return control
+    }()
+
+    /// Container for the tab bar so we can show/hide it as a group with consistent padding.
+    private lazy var tabBarContainer: NSView = {
+        let v = NSView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.addSubview(tabBar)
+        NSLayoutConstraint.activate([
+            tabBar.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 12),
+            tabBar.topAnchor.constraint(equalTo: v.topAnchor, constant: 8),
+            tabBar.bottomAnchor.constraint(equalTo: v.bottomAnchor, constant: -4),
+        ])
+        return v
+    }()
+
     private lazy var sessionListView: SessionListView = {
         let v = SessionListView()
         v.translatesAutoresizingMaskIntoConstraints = false
@@ -169,6 +203,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Called when the user deletes a session from the history list.
     var onDeleteSession: ((ChatSession) -> Void)?
+
+    /// Called when the user changes the session list tab (All / Reminders / Routines).
+    var onTabChanged: ((SessionTab) -> Void)?
 
     // MARK: - UI Components
 
@@ -353,8 +390,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             mainStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor),
         ])
 
-        // Add divider + session list + response to stack, keep them hidden
+        // Add divider + tab bar + session list + response to stack, keep them hidden
         mainStack.addArrangedSubview(dividerContainer)
+        mainStack.addArrangedSubview(tabBarContainer)
         mainStack.addArrangedSubview(sessionListView)
         mainStack.addArrangedSubview(responseScrollView)
 
@@ -396,6 +434,14 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Extra bottom content inset added when the tool indicator is visible
     /// so the streaming cursor / last line is never hidden behind the floating pill.
     private let toolIndicatorBottomInset: CGFloat = 36
+
+    /// The intrinsic height of the tab bar container (top padding + control + bottom padding).
+    private let tabBarHeight: CGFloat = 44
+
+    @objc private func tabBarChanged(_ sender: NSSegmentedControl) {
+        let tab = SessionTab(rawValue: sender.selectedSegment) ?? .all
+        onTabChanged?(tab)
+    }
 
     // MARK: - Tool Indicator
 
@@ -1176,6 +1222,20 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Shows the session history list with grouped sessions.
     func showSessionList(_ groups: [(label: String, sessions: [ChatSession])]) {
         guard !groups.isEmpty else { return }
+
+        // Reset response area so it doesn't ghost behind the session list
+        responseScrollView.isHidden = true
+        responseHeightConstraint?.constant = 0
+        reachedMaxHeight = false
+        lastTargetHeight = 0
+        rawMarkdown = ""
+        pendingMarkdown = ""
+        displayedMarkdown = ""
+        conversationAttributed = NSMutableAttributedString()
+        conversationBaseLength = 0
+        responseTextView.textStorage?.setAttributedString(NSAttributedString())
+        responseTextView.removeAllCopyButtons()
+
         sessionListView.reload(groups: groups)
 
         // Calculate target height based on content
@@ -1185,15 +1245,17 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         let totalItems = groups.reduce(0) { $0 + $1.sessions.count }
         let totalHeaders = groups.count
         let contentHeight = CGFloat(totalItems) * rowHeight + CGFloat(totalHeaders) * headerHeight + padding
-        let targetHeight = min(contentHeight, responseMaxHeight)
+        let listTargetHeight = min(contentHeight, responseMaxHeight - tabBarHeight)
 
         sessionListHeightConstraint?.constant = 0
         dividerContainer.isHidden = false
+        tabBarContainer.isHidden = false
         sessionListView.isHidden = false
         dividerContainer.alphaValue = 1
+        tabBarContainer.alphaValue = 1
         sessionListView.alphaValue = 1
 
-        let newPanelHeight = inputHeight + 1 + targetHeight
+        let newPanelHeight = inputHeight + 1 + tabBarHeight + listTargetHeight
         let newOriginY = topY - newPanelHeight
         let newFrame = NSRect(
             x: frame.origin.x,
@@ -1206,7 +1268,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             ctx.duration = 0.2
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             ctx.allowsImplicitAnimation = true
-            self.sessionListHeightConstraint?.animator().constant = targetHeight
+            self.sessionListHeightConstraint?.animator().constant = listTargetHeight
             self.animator().setFrame(newFrame, display: true)
         } completionHandler: {
             MainActor.assumeIsolated { [weak self] in
@@ -1218,19 +1280,26 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         makeFirstResponder(inputField)
     }
 
-    /// Hides the session list.
+    /// Hides the session list and tab bar.
     func hideSessionList() {
-        guard !sessionListView.isHidden else { return }
+        let sessionListVisible = !sessionListView.isHidden
+        let tabBarVisible = !tabBarContainer.isHidden
+
+        guard sessionListVisible || tabBarVisible else { return }
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.15
             ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            self.sessionListView.animator().alphaValue = 0
+            if sessionListVisible { self.sessionListView.animator().alphaValue = 0 }
+            if tabBarVisible { self.tabBarContainer.animator().alphaValue = 0 }
         } completionHandler: {
             MainActor.assumeIsolated { [weak self] in
                 guard let self else { return }
                 sessionListView.isHidden = true
                 sessionListHeightConstraint?.constant = 0
+                tabBarContainer.isHidden = true
+                // Reset tab to "All" for next open
+                tabBar.selectedSegment = 0
                 // If response area is also hidden, collapse the divider too
                 if responseScrollView.isHidden {
                     dividerContainer.isHidden = true
@@ -1294,7 +1363,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         // Set the text storage
         responseTextView.textStorage?.setAttributedString(conversationAttributed)
 
-        // Hide session list, show response area
+        // Hide session list, show response area (keep tab bar visible for navigation)
         sessionListView.isHidden = true
         sessionListHeightConstraint?.constant = 0
         dividerContainer.isHidden = false
@@ -1302,13 +1371,24 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         dividerContainer.alphaValue = 1
         responseScrollView.alphaValue = 1
 
-        // Size the panel
-        reachedMaxHeight = true
-        responseHeightConstraint?.constant = responseMaxHeight
-        responseScrollView.hasVerticalScroller = true
-        lastTargetHeight = responseMaxHeight
+        // Size the panel dynamically based on content
+        responseTextView.layoutManager?.ensureLayout(
+            for: responseTextView.textContainer!
+        )
+        let contentHeight = responseTextView.layoutManager?.usedRect(
+            for: responseTextView.textContainer!
+        ).height ?? 0
+        let textInset = responseTextView.textContainerInset.height * 2
+        let targetHeight = min(contentHeight + textInset, responseMaxHeight)
 
-        let panelHeight = inputHeight + 1 + responseMaxHeight
+        if targetHeight >= responseMaxHeight {
+            reachedMaxHeight = true
+        }
+        responseHeightConstraint?.constant = targetHeight
+        responseScrollView.hasVerticalScroller = targetHeight >= responseMaxHeight
+        lastTargetHeight = targetHeight
+
+        let panelHeight = inputHeight + 1 + targetHeight
         let newOriginY = topY - panelHeight
         setFrame(
             NSRect(x: frame.origin.x, y: newOriginY, width: panelWidth, height: panelHeight),

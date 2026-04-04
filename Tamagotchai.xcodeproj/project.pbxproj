@@ -69,6 +69,7 @@
 		CD7DD157F5B33996F7FA5D8E /* FileSystemToolHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7878CFDA4C915D3023570D92 /* FileSystemToolHelpersTests.swift */; };
 		CDA6A7CF8189B49B21D7A64F /* VoiceSettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF637C730E241838C7548D72 /* VoiceSettingsController.swift */; };
 		D05DC3925D0CE7AE3CD912DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 963D29896D050E424A1F4A9A /* ClaudeModels.swift */; };
+		D0F97A57CD9D01B529B04D64 /* NotificationDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */; };
 		D65EDBCEDA29BA38056224D7 /* ListSchedulesTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03764AC97B0A74D6FAFAE57 /* ListSchedulesTool.swift */; };
 		DB6B707EC2B933CEB8DDD5B0 /* DismissTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42F0D8A51D3C989243B5DAF /* DismissTool.swift */; };
 		DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EF6276BE226C9B7F8E56F /* FloatingPanel.swift */; };
@@ -132,6 +133,7 @@
 		85A1ADE518F5788DF19D46F2 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
 		85A77BA6215B29CCDAF7A013 /* DeleteScheduleTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteScheduleTool.swift; sourceTree = "<group>"; };
 		869BD6CA39A39DC4CFAC9F7C /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
+		8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDetailPanel.swift; sourceTree = "<group>"; };
 		95C1ED0AF6B8F14C84DABB06 /* ResponseTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseTextView.swift; sourceTree = "<group>"; };
 		963D29896D050E424A1F4A9A /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		9971134D5A8CC271EC9E1952 /* ClaudeModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelsTests.swift; sourceTree = "<group>"; };
@@ -293,6 +295,7 @@
 			isa = PBXGroup;
 			children = (
 				E403F3F88707440903AFEC16 /* NotchNotificationPresenter.swift */,
+				8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -604,6 +607,7 @@
 				3AD96FC81D1A407C7A56AEB4 /* MenuBarIcon.swift in Sources */,
 				E39D6A235CBEA18B5907E2E6 /* MenuBarMood.swift in Sources */,
 				6C44A6DCF36B6EFEABBA96F3 /* NotchNotificationPresenter.swift in Sources */,
+				D0F97A57CD9D01B529B04D64 /* NotificationDetailPanel.swift in Sources */,
 				A105647F2FA2573F43DBD388 /* PanelHelperViews.swift in Sources */,
 				F9B668289D091B6C74895B33 /* PermissionsChecker.swift in Sources */,
 				A0CFCF6317015068BA72D0D4 /* PermissionsView.swift in Sources */,

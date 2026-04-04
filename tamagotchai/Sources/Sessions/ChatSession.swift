@@ -93,6 +93,13 @@ enum MessageContent: Codable {
     }
 }
 
+/// The type of session — chat (default), reminders, or routines.
+enum SessionType: String, Codable {
+    case chat
+    case reminders
+    case routines
+}
+
 /// A persisted chat session containing messages and metadata.
 struct ChatSession: Codable, Identifiable {
     let id: UUID
@@ -102,6 +109,8 @@ struct ChatSession: Codable, Identifiable {
     var updatedAt: Date
     /// The mood icon raw value assigned to this session for display in the session list.
     var moodIcon: String
+    /// The type of session — regular chat, reminders, or routines.
+    var sessionType: SessionType
 
     init(
         id: UUID,
@@ -109,7 +118,8 @@ struct ChatSession: Codable, Identifiable {
         messages: [ChatMessage],
         createdAt: Date,
         updatedAt: Date,
-        moodIcon: String = MenuBarMood.Mood.allCases.randomElement()!.rawValue
+        moodIcon: String = MenuBarMood.Mood.allCases.randomElement()!.rawValue,
+        sessionType: SessionType = .chat
     ) {
         self.id = id
         self.title = title
@@ -117,6 +127,7 @@ struct ChatSession: Codable, Identifiable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.moodIcon = moodIcon
+        self.sessionType = sessionType
     }
 
     init(from decoder: Decoder) throws {
@@ -129,6 +140,7 @@ struct ChatSession: Codable, Identifiable {
         // Fall back to a deterministic mood based on session ID for legacy sessions
         moodIcon = try container.decodeIfPresent(String.self, forKey: .moodIcon)
             ?? Self.deterministicMood(for: container.decode(UUID.self, forKey: .id))
+        sessionType = try container.decodeIfPresent(SessionType.self, forKey: .sessionType) ?? .chat
     }
 
     /// Picks a stable mood from the session's UUID so legacy sessions always get the same icon.

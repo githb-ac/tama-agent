@@ -19,6 +19,21 @@ enum NotchNotificationPresenter {
     /// Audio player for the notification sound.
     private static var audioPlayer: AVAudioPlayer?
 
+    /// Called when the user clicks the toast.
+    private static var onTap: (() -> Void)?
+
+    /// The full title of the current notification (for detail view).
+    private(set) static var currentTitle: String = ""
+
+    /// The full body of the current notification (for detail view).
+    private(set) static var currentBody: String = ""
+
+    /// Remaining dismiss time when hover pauses the timer.
+    private static var remainingDismissTime: TimeInterval = 0
+
+    /// When the dismiss timer was last started/resumed.
+    private static var timerStartDate: Date?
+
     /// Show a reminder notification.
     static func showReminder(name: String, message: String) {
         logger.info("Presenting toast reminder: '\(name)'")
@@ -38,7 +53,7 @@ enum NotchNotificationPresenter {
             icon: "bolt.fill",
             iconColor: .systemTeal,
             title: "Routine: \(name)",
-            subtitle: String(result.prefix(200)),
+            subtitle: result,
             duration: 6
         )
     }
@@ -92,8 +107,6 @@ enum NotchNotificationPresenter {
         panel.hasShadow = true
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.ignoresMouseEvents = true
-
         // Glass background.
         let effectView = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight))
         effectView.material = .hudWindow
@@ -113,6 +126,18 @@ enum NotchNotificationPresenter {
         panel.orderFrontRegardless()
 
         activePanel = panel
+        currentTitle = title
+        currentBody = subtitle
+
+        // Add click gesture and hover tracking via a transparent overlay.
+        let overlay = ToastOverlayView(frame: effectView.bounds)
+        overlay.autoresizingMask = [.width, .height]
+        effectView.addSubview(overlay)
+
+        onTap = {
+            dismissImmediately()
+            NotificationDetailPanel.show(title: title, body: subtitle)
+        }
 
         // Animate slide-down.
         NSAnimationContext.runAnimationGroup { context in
@@ -125,6 +150,8 @@ enum NotchNotificationPresenter {
         }
 
         // Schedule auto-dismiss.
+        remainingDismissTime = duration
+        timerStartDate = Date()
         dismissTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
             Task { @MainActor in
                 dismissAnimated()
@@ -169,6 +196,34 @@ enum NotchNotificationPresenter {
         dismissTimer = nil
         activePanel?.orderOut(nil)
         activePanel = nil
+        onTap = nil
+    }
+
+    /// Pauses the auto-dismiss timer (called on mouse hover).
+    static func pauseDismissTimer() {
+        guard let timer = dismissTimer, timer.isValid, let startDate = timerStartDate else { return }
+        let elapsed = Date().timeIntervalSince(startDate)
+        remainingDismissTime = max(0.5, remainingDismissTime - elapsed)
+        timer.invalidate()
+        dismissTimer = nil
+        logger.debug("Dismiss timer paused, remaining: \(remainingDismissTime)s")
+    }
+
+    /// Resumes the auto-dismiss timer (called on mouse exit).
+    static func resumeDismissTimer() {
+        guard dismissTimer == nil, activePanel != nil else { return }
+        timerStartDate = Date()
+        dismissTimer = Timer.scheduledTimer(withTimeInterval: remainingDismissTime, repeats: false) { _ in
+            Task { @MainActor in
+                dismissAnimated()
+            }
+        }
+        logger.debug("Dismiss timer resumed for \(remainingDismissTime)s")
+    }
+
+    /// Handles a click on the toast.
+    static func handleTap() {
+        onTap?()
     }
 
     private static func playNotificationSound() {
@@ -221,8 +276,8 @@ enum NotchNotificationPresenter {
         subtitleField.translatesAutoresizingMaskIntoConstraints = false
         subtitleField.font = NSFont.systemFont(ofSize: 11, weight: .regular)
         subtitleField.textColor = NSColor.white.withAlphaComponent(0.7)
-        subtitleField.maximumNumberOfLines = 2
-        subtitleField.lineBreakMode = .byTruncatingTail
+        subtitleField.maximumNumberOfLines = 5
+        subtitleField.lineBreakMode = .byWordWrapping
         subtitleField.preferredMaxLayoutWidth = toastWidth - 56
         container.addSubview(subtitleField)
 
@@ -244,5 +299,39 @@ enum NotchNotificationPresenter {
         ])
 
         return container
+    }
+}
+
+// MARK: - Toast Overlay View
+
+/// Transparent overlay that captures mouse clicks and hover events on the toast.
+private final class ToastOverlayView: NSView {
+    private var trackingArea: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with _: NSEvent) {
+        NSCursor.pointingHand.push()
+        NotchNotificationPresenter.pauseDismissTimer()
+    }
+
+    override func mouseExited(with _: NSEvent) {
+        NSCursor.pop()
+        NotchNotificationPresenter.resumeDismissTimer()
+    }
+
+    override func mouseDown(with _: NSEvent) {
+        NotchNotificationPresenter.handleTap()
     }
 }
