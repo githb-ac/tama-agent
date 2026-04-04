@@ -52,6 +52,7 @@
 		733199A712E730CF498F13D6 /* SystemAudioMuter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E57BB6D69242561439F3011 /* SystemAudioMuter.swift */; };
 		7A6992BC438DDC623751B16B /* CreateRoutineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57353C6F64FC4E0E86EFD1B5 /* CreateRoutineTool.swift */; };
 		7DB9FC5C51C07B7E936514DE /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E759ECBBE66883138A0117EB /* OnboardingView.swift */; };
+		8186F0DDC3A564CD36F97ADE /* TogglePanelTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1464C3561BB46DA2BA484495 /* TogglePanelTool.swift */; };
 		82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36B2FBCA59725E0DD164913B /* TamagotchaiApp.swift */; };
 		8729975310E65C0400B1320C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8480E13D5EBD03B8C4DEF80 /* LoginView.swift */; };
 		876CF2359FA2FD870FECB7F0 /* ClipboardHistoryTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A1AC0B2FB75E49C3152D5F /* ClipboardHistoryTool.swift */; };
@@ -66,6 +67,7 @@
 		A105647F2FA2573F43DBD388 /* PanelHelperViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2296DDD794CFDF886EDE508 /* PanelHelperViews.swift */; };
 		A884E9097990770149B7D13F /* StreamParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDBE40585CD80FD3B2F4C702 /* StreamParser.swift */; };
 		A98305F6A26FB76A56F2E811 /* DeleteScheduleTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85A77BA6215B29CCDAF7A013 /* DeleteScheduleTool.swift */; };
+		AE82A7FC288CAFD779539D9C /* NightShiftTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D686DDAEA87EBBB9003FBC3 /* NightShiftTool.swift */; };
 		AF3290B40BB654621C1CCDBD /* OAuthCredentialsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194336D686B4FAE0AEA94156 /* OAuthCredentialsTests.swift */; };
 		AF8519C7A25F8C02BCB1A68E /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4BC561B4564DD9CA624CF /* ClaudeService.swift */; };
 		AFB8A474EC6602B09505E1F1 /* MascotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B74160BBE6B75D3AA754C2 /* MascotView.swift */; };
@@ -96,6 +98,7 @@
 		E54F896FEF7CBEACFBCBF3D4 /* ModelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82766758E7104B49DA4B24D7 /* ModelRegistry.swift */; };
 		E566577EF74445A44CDEC685 /* BashTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A72ADD77BE83A08A891E51 /* BashTool.swift */; };
 		E65D02C2C48278BC98889A96 /* ClipboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8315F2EE7A5F55D1EA63B379 /* ClipboardStore.swift */; };
+		EAC554BE0E6F8B704E713DE9 /* KeepAwakeTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733B9DCC4E8EA101D3AA8DC9 /* KeepAwakeTool.swift */; };
 		EDEFE417BF656F06FE8A6AE8 /* ClaudeCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025B3C45281DE97D0FCB7955 /* ClaudeCredentials.swift */; };
 		F58FF53E977502C0DEBAEB08 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C55707E98AC0A9DBBD308C /* SessionListView.swift */; };
 		F8E16C2EDEA0F0B5AA956918 /* sound-step.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7EBD9C614C124F63F667F904 /* sound-step.mp3 */; };
@@ -118,10 +121,12 @@
 		11578A4FDB7FF0EFD6F2D63B /* notification.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = notification.mp3; sourceTree = "<group>"; };
 		12B82049C6C05BCC221E3CB7 /* ReadToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadToolTests.swift; sourceTree = "<group>"; };
 		1332AD56024DA21D5CBC567D /* ToolListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolListView.swift; sourceTree = "<group>"; };
+		1464C3561BB46DA2BA484495 /* TogglePanelTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogglePanelTool.swift; sourceTree = "<group>"; };
 		180872F509A230A812485204 /* LoginWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginWindowController.swift; sourceTree = "<group>"; };
 		1850BDC2200F82D29A6FD001 /* DropdownPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropdownPanelController.swift; sourceTree = "<group>"; };
 		194336D686B4FAE0AEA94156 /* OAuthCredentialsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCredentialsTests.swift; sourceTree = "<group>"; };
 		1C23F76A77C1AEDFCD0BC3D3 /* WriteTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteTool.swift; sourceTree = "<group>"; };
+		1D686DDAEA87EBBB9003FBC3 /* NightShiftTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightShiftTool.swift; sourceTree = "<group>"; };
 		1DBF6D948FB1FEC79444D571 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
 		240A2BC5BE91EC59111BB7FC /* AgentTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTool.swift; sourceTree = "<group>"; };
 		32C55707E98AC0A9DBBD308C /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
@@ -147,6 +152,7 @@
 		7168E0B1AB18A524605E5187 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
 		72A72ADD77BE83A08A891E51 /* BashTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashTool.swift; sourceTree = "<group>"; };
 		72AF6B49D01EF78F8C45843C /* ToolRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRowView.swift; sourceTree = "<group>"; };
+		733B9DCC4E8EA101D3AA8DC9 /* KeepAwakeTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepAwakeTool.swift; sourceTree = "<group>"; };
 		74E486201C304EAB13FBF233 /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		76F26E815173BCF54B26DCB9 /* Tamagotchai.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tamagotchai.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7878CFDA4C915D3023570D92 /* FileSystemToolHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSystemToolHelpersTests.swift; sourceTree = "<group>"; };
@@ -306,6 +312,14 @@
 			path = Sessions;
 			sourceTree = "<group>";
 		};
+		6F3978A81F46F7F919F19207 /* NightShift */ = {
+			isa = PBXGroup;
+			children = (
+				1D686DDAEA87EBBB9003FBC3 /* NightShiftTool.swift */,
+			);
+			path = NightShift;
+			sourceTree = "<group>";
+		};
 		7F368DB0E846E61B34C5BE61 /* Permissions */ = {
 			isa = PBXGroup;
 			children = (
@@ -359,6 +373,14 @@
 				8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */,
 			);
 			path = Notifications;
+			sourceTree = "<group>";
+		};
+		8511C0F3CFB42FD4D1AC477F /* KeepAwake */ = {
+			isa = PBXGroup;
+			children = (
+				733B9DCC4E8EA101D3AA8DC9 /* KeepAwakeTool.swift */,
+			);
+			path = KeepAwake;
 			sourceTree = "<group>";
 		};
 		92DEE8BA3E6272FAE98B38C0 /* tamagotchai */ = {
@@ -415,9 +437,12 @@
 			children = (
 				9DC454D2E2B4B47174003D22 /* PanelTool.swift */,
 				47135ABEFCBEDDCBF5BEEA98 /* PanelToolRegistry.swift */,
+				1464C3561BB46DA2BA484495 /* TogglePanelTool.swift */,
 				1332AD56024DA21D5CBC567D /* ToolListView.swift */,
 				72AF6B49D01EF78F8C45843C /* ToolRowView.swift */,
 				2B431A836B91AB966A8F5925 /* ClipboardHistory */,
+				8511C0F3CFB42FD4D1AC477F /* KeepAwake */,
+				6F3978A81F46F7F919F19207 /* NightShift */,
 			);
 			path = Tools;
 			sourceTree = "<group>";
@@ -687,6 +712,7 @@
 				DDC23F57DB0A9623506D08E3 /* FloatingPanel.swift in Sources */,
 				6E304973699DF7CAB9D7744A /* GlassButton.swift in Sources */,
 				4291668781FF244B5A7EE081 /* GrepTool.swift in Sources */,
+				EAC554BE0E6F8B704E713DE9 /* KeepAwakeTool.swift in Sources */,
 				2A9492B440B332C9BA04AF09 /* KokoroManager.swift in Sources */,
 				D65EDBCEDA29BA38056224D7 /* ListSchedulesTool.swift in Sources */,
 				8729975310E65C0400B1320C /* LoginView.swift in Sources */,
@@ -698,6 +724,7 @@
 				3AD96FC81D1A407C7A56AEB4 /* MenuBarIcon.swift in Sources */,
 				E39D6A235CBEA18B5907E2E6 /* MenuBarMood.swift in Sources */,
 				E54F896FEF7CBEACFBCBF3D4 /* ModelRegistry.swift in Sources */,
+				AE82A7FC288CAFD779539D9C /* NightShiftTool.swift in Sources */,
 				6C44A6DCF36B6EFEABBA96F3 /* NotchNotificationPresenter.swift in Sources */,
 				D0F97A57CD9D01B529B04D64 /* NotificationDetailPanel.swift in Sources */,
 				5992569D4CFF51601B07116C /* OnboardingController.swift in Sources */,
@@ -722,6 +749,7 @@
 				A884E9097990770149B7D13F /* StreamParser.swift in Sources */,
 				733199A712E730CF498F13D6 /* SystemAudioMuter.swift in Sources */,
 				82E2D035D7EFA0B8535A6E41 /* TamagotchaiApp.swift in Sources */,
+				8186F0DDC3A564CD36F97ADE /* TogglePanelTool.swift in Sources */,
 				20010341711C692BD019245D /* ToolIndicatorView.swift in Sources */,
 				6DBE4D93EC93940963BD8BDE /* ToolListView.swift in Sources */,
 				33AF8C610FBA8C2DF75FFD71 /* ToolRowView.swift in Sources */,

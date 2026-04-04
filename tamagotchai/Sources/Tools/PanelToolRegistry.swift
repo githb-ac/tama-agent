@@ -9,6 +9,10 @@ final class PanelToolRegistry {
 
     private init() {
         register(ClipboardHistoryTool())
+        register(KeepAwakeTool())
+        if NightShiftTool.isSupported {
+            register(NightShiftTool())
+        }
     }
 
     func register(_ tool: PanelTool) {

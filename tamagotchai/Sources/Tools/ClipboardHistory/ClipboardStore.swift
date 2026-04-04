@@ -58,6 +58,11 @@ final class ClipboardStore {
         }
     }
 
+    func delete(_ entry: ClipboardEntry) {
+        entries.removeAll { $0.id == entry.id }
+        save()
+    }
+
     func clear() {
         entries.removeAll()
         save()

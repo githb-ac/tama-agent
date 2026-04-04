@@ -87,6 +87,10 @@ final class ClipboardHistoryView: NSView {
                     row.onSelect = { [weak self] in
                         self?.copyEntry(entry)
                     }
+                    row.onDelete = { [weak self] in
+                        ClipboardStore.shared.delete(entry)
+                        self?.reload()
+                    }
                     contentStack.addArrangedSubview(row)
                 }
             }
@@ -199,11 +203,13 @@ final class ClipboardHistoryView: NSView {
 
 // MARK: - Entry Row View
 
-/// A single clipboard entry row with preview text and timestamp.
+/// A single clipboard entry row with preview text, timestamp, and delete button on hover.
 private final class ClipboardEntryRowView: NSView {
     var onSelect: (() -> Void)?
+    var onDelete: (() -> Void)?
     private var isHovered = false
     private var trackingArea: NSTrackingArea?
+    private let timeLabel = NSTextField(labelWithString: "")
 
     private lazy var highlightLayer: CALayer = {
         let layer = CALayer()
@@ -212,6 +218,28 @@ private final class ClipboardEntryRowView: NSView {
         layer.isHidden = true
         return layer
     }()
+
+    private lazy var deleteButton: NSButton = {
+        let btn = NSButton()
+        btn.title = "Delete"
+        btn.font = .systemFont(ofSize: 11, weight: .medium)
+        btn.isBordered = false
+        btn.wantsLayer = true
+        btn.layer?.cornerRadius = 8
+        btn.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.14).cgColor
+        btn.layer?.borderWidth = 0.5
+        btn.layer?.borderColor = NSColor.systemRed.withAlphaComponent(0.25).cgColor
+        btn.contentTintColor = .systemRed
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.isHidden = true
+        btn.target = self
+        btn.action = #selector(deleteClicked)
+        btn.setContentHuggingPriority(.required, for: .horizontal)
+        btn.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return btn
+    }()
+
+    private lazy var deleteButtonHoverTracker: DeleteButtonHoverTracker = .init(button: deleteButton)
 
     private lazy var copiedOverlay: NSView = {
         let overlay = NSView()
@@ -276,7 +304,7 @@ private final class ClipboardEntryRowView: NSView {
         // Trailing metadata: source app name + relative time
         let timeParts: [String] = [entry.sourceAppName, Self.relativeTime(entry.timestamp)]
             .compactMap(\.self)
-        let timeLabel = NSTextField(labelWithString: timeParts.joined(separator: " · "))
+        timeLabel.stringValue = timeParts.joined(separator: " · ")
         timeLabel.font = .systemFont(ofSize: 22, weight: .regular)
         timeLabel.textColor = .tertiaryLabelColor
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -286,6 +314,12 @@ private final class ClipboardEntryRowView: NSView {
         addSubview(iconView)
         addSubview(previewLabel)
         addSubview(timeLabel)
+        addSubview(deleteButton)
+
+        NSLayoutConstraint.activate([
+            deleteButton.widthAnchor.constraint(equalToConstant: 56),
+            deleteButton.heightAnchor.constraint(equalToConstant: 26),
+        ])
 
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
@@ -296,10 +330,17 @@ private final class ClipboardEntryRowView: NSView {
             previewLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 10),
             previewLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
             previewLabel.trailingAnchor.constraint(lessThanOrEqualTo: timeLabel.leadingAnchor, constant: -12),
+            previewLabel.trailingAnchor.constraint(lessThanOrEqualTo: deleteButton.leadingAnchor, constant: -12),
 
             timeLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
             timeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            deleteButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            deleteButton.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
+
+        // Set up hover tracking on delete button
+        _ = deleteButtonHoverTracker
 
         // "Copied" overlay — covers the row, hidden by default
         addSubview(copiedOverlay)
@@ -309,6 +350,11 @@ private final class ClipboardEntryRowView: NSView {
             copiedOverlay.topAnchor.constraint(equalTo: topAnchor, constant: 1),
             copiedOverlay.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
         ])
+    }
+
+    @objc private func deleteClicked() {
+        ButtonSound.shared.play()
+        onDelete?()
     }
 
     override func layout() {
@@ -332,14 +378,21 @@ private final class ClipboardEntryRowView: NSView {
     override func mouseEntered(with _: NSEvent) {
         isHovered = true
         highlightLayer.isHidden = false
+        timeLabel.isHidden = true
+        deleteButton.isHidden = false
     }
 
     override func mouseExited(with _: NSEvent) {
         isHovered = false
         highlightLayer.isHidden = true
+        deleteButton.isHidden = true
+        timeLabel.isHidden = false
     }
 
     override func mouseDown(with event: NSEvent) {
+        // Don't trigger select if clicking the delete button
+        let loc = convert(event.locationInWindow, from: nil)
+        if deleteButton.frame.contains(loc) { return }
         ButtonSound.shared.play()
         super.mouseDown(with: event)
         onSelect?()
@@ -379,6 +432,38 @@ private final class ClipboardEntryRowView: NSView {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Delete Button Hover Tracker
+
+/// Tracks mouse enter/exit on the delete button to adjust its background opacity.
+private final class DeleteButtonHoverTracker: NSResponder {
+    private weak var button: NSButton?
+
+    init(button: NSButton) {
+        self.button = button
+        super.init()
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        button.addTrackingArea(area)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func mouseEntered(with _: NSEvent) {
+        button?.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.25).cgColor
+    }
+
+    override func mouseExited(with _: NSEvent) {
+        button?.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.14).cgColor
     }
 }
 

@@ -71,8 +71,13 @@ final class ToolListView: NSView {
                 let row = ToolRowView(tool: tool)
                 row.translatesAutoresizingMaskIntoConstraints = false
                 row.heightAnchor.constraint(equalToConstant: 52).isActive = true
-                row.onSelect = { [weak self] in
-                    self?.onSelectTool?(tool)
+                // Toggle tools handle interaction inline — no drilldown
+                if tool is any TogglePanelTool {
+                    // No onSelect needed; ToolRowView handles toggle clicks directly
+                } else {
+                    row.onSelect = { [weak self] in
+                        self?.onSelectTool?(tool)
+                    }
                 }
                 contentStack.addArrangedSubview(row)
             }
