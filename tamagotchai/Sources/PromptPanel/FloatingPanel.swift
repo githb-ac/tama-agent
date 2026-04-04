@@ -1219,10 +1219,8 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     // MARK: - Session List
 
-    /// Shows the session history list with grouped sessions.
-    func showSessionList(_ groups: [(label: String, sessions: [ChatSession])]) {
-        guard !groups.isEmpty else { return }
-
+    /// Shows the session history list with grouped sessions, or an empty state message.
+    func showSessionList(_ groups: [(label: String, sessions: [ChatSession])], emptyMessage: String? = nil) {
         // Reset response area so it doesn't ghost behind the session list
         responseScrollView.isHidden = true
         responseHeightConstraint?.constant = 0
@@ -1236,16 +1234,21 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         responseTextView.textStorage?.setAttributedString(NSAttributedString())
         responseTextView.removeAllCopyButtons()
 
-        sessionListView.reload(groups: groups)
+        sessionListView.reload(groups: groups, emptyMessage: emptyMessage)
 
         // Calculate target height based on content
-        let rowHeight: CGFloat = 44
-        let headerHeight: CGFloat = 28
-        let padding: CGFloat = 12
-        let totalItems = groups.reduce(0) { $0 + $1.sessions.count }
-        let totalHeaders = groups.count
-        let contentHeight = CGFloat(totalItems) * rowHeight + CGFloat(totalHeaders) * headerHeight + padding
-        let listTargetHeight = min(contentHeight, responseMaxHeight - tabBarHeight)
+        let listTargetHeight: CGFloat
+        if groups.isEmpty {
+            listTargetHeight = 80
+        } else {
+            let rowHeight: CGFloat = 44
+            let headerHeight: CGFloat = 28
+            let padding: CGFloat = 12
+            let totalItems = groups.reduce(0) { $0 + $1.sessions.count }
+            let totalHeaders = groups.count
+            let contentHeight = CGFloat(totalItems) * rowHeight + CGFloat(totalHeaders) * headerHeight + padding
+            listTargetHeight = min(contentHeight, responseMaxHeight - tabBarHeight)
+        }
 
         sessionListHeightConstraint?.constant = 0
         dividerContainer.isHidden = false
@@ -1358,6 +1361,22 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             }
         }
 
+        // If nothing displayable, show an empty state
+        if conversationAttributed.length == 0 {
+            let emptyAttrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 14, weight: .medium),
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .paragraphStyle: {
+                    let style = NSMutableParagraphStyle()
+                    style.alignment = .center
+                    return style
+                }(),
+            ]
+            conversationAttributed.append(
+                NSAttributedString(string: "\nNo content in this session.", attributes: emptyAttrs)
+            )
+        }
+
         conversationBaseLength = conversationAttributed.length
 
         // Set the text storage
@@ -1388,12 +1407,17 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         responseScrollView.hasVerticalScroller = targetHeight >= responseMaxHeight
         lastTargetHeight = targetHeight
 
-        let panelHeight = inputHeight + 1 + targetHeight
+        // Account for tab bar if it's visible (e.g. navigating from session list)
+        let tabBarExtra: CGFloat = tabBarContainer.isHidden ? 0 : tabBarHeight
+        let panelHeight = inputHeight + 1 + tabBarExtra + targetHeight
         let newOriginY = topY - panelHeight
         setFrame(
             NSRect(x: frame.origin.x, y: newOriginY, width: panelWidth, height: panelHeight),
             display: true
         )
+
+        // Force layout before positioning mascot so spacer has its final screen coordinates
+        contentView?.layoutSubtreeIfNeeded()
 
         responseTextView.updateCodeBlockOverlays()
         positionMascotOverSpacer()

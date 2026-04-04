@@ -29,6 +29,7 @@
 		465F5E926E025E3475C5FB31 /* ReadToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12B82049C6C05BCC221E3CB7 /* ReadToolTests.swift */; };
 		494636F1B1027F365D1A3B43 /* ScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3ED3F618D51F16DF34947 /* ScheduleParser.swift */; };
 		4A828D5A83EBAAAB377315FB /* VoiceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A7D03CAF825914B6DD7B1 /* VoiceSettingsView.swift */; };
+		55A1BEFFC0FCB1906123E71C /* CircleCloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91C0CA906FA582CAF90E4D89 /* CircleCloseButton.swift */; };
 		58A6EC99AA0D4939ED8985C9 /* avatar_pack.riv in Resources */ = {isa = PBXBuildFile; fileRef = 46B666BC978765216D62FF84 /* avatar_pack.riv */; };
 		5992569D4CFF51601B07116C /* OnboardingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA55ADCBB2C549A9A462481D /* OnboardingController.swift */; };
 		5BFE8EA7252582A6DE513D3D /* WebFetchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AAE3B60D199496B2AD15707 /* WebFetchTool.swift */; };
@@ -139,6 +140,7 @@
 		85A77BA6215B29CCDAF7A013 /* DeleteScheduleTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteScheduleTool.swift; sourceTree = "<group>"; };
 		869BD6CA39A39DC4CFAC9F7C /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
 		8B69A845646CCDA7C71882E5 /* NotificationDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDetailPanel.swift; sourceTree = "<group>"; };
+		91C0CA906FA582CAF90E4D89 /* CircleCloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleCloseButton.swift; sourceTree = "<group>"; };
 		95C1ED0AF6B8F14C84DABB06 /* ResponseTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseTextView.swift; sourceTree = "<group>"; };
 		963D29896D050E424A1F4A9A /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		9971134D5A8CC271EC9E1952 /* ClaudeModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelsTests.swift; sourceTree = "<group>"; };
@@ -357,6 +359,7 @@
 			isa = PBXGroup;
 			children = (
 				9F5FBD1F1B2B2DDFF03909B8 /* ButtonSound.swift */,
+				91C0CA906FA582CAF90E4D89 /* CircleCloseButton.swift */,
 				1850BDC2200F82D29A6FD001 /* DropdownPanelController.swift */,
 				85A1ADE518F5788DF19D46F2 /* GlassButton.swift */,
 				74E486201C304EAB13FBF233 /* MenuBarIcon.swift */,
@@ -604,6 +607,7 @@
 				E566577EF74445A44CDEC685 /* BashTool.swift in Sources */,
 				CCEACA827686DCAA08534478 /* ButtonSound.swift in Sources */,
 				2B2A12209274B6107B305CCD /* ChatSession.swift in Sources */,
+				55A1BEFFC0FCB1906123E71C /* CircleCloseButton.swift in Sources */,
 				EDEFE417BF656F06FE8A6AE8 /* ClaudeCredentials.swift in Sources */,
 				D05DC3925D0CE7AE3CD912DC /* ClaudeModels.swift in Sources */,
 				BD02EB2A0950C8C2F57A56E9 /* ClaudeOAuth.swift in Sources */,

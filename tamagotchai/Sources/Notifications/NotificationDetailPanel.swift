@@ -43,6 +43,7 @@ final class NotificationDetailPanel: NSPanel {
         collectionBehavior = [.fullScreenAuxiliary, .canJoinAllSpaces]
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
+        standardWindowButton(.closeButton)?.isHidden = true
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true
         isMovableByWindowBackground = true
@@ -72,19 +73,11 @@ final class NotificationDetailPanel: NSPanel {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         effectView.addSubview(titleLabel)
 
-        // Close button
-        let closeButton = NSButton()
-        closeButton.image = NSImage(
-            systemSymbolName: "xmark.circle.fill",
-            accessibilityDescription: "Close"
-        )
-        closeButton.bezelStyle = .inline
-        closeButton.isBordered = false
-        closeButton.contentTintColor = .secondaryLabelColor
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        // Close button — matches onboarding style
+        let closeButton = CircleCloseButton()
         closeButton.target = self
         closeButton.action = #selector(closeTapped)
-        closeButton.setContentHuggingPriority(.required, for: .horizontal)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
         effectView.addSubview(closeButton)
 
         // Body text view in a scroll view
@@ -106,7 +99,8 @@ final class NotificationDetailPanel: NSPanel {
         textView.textColor = .labelColor
         textView.backgroundColor = .clear
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.textContainerInset = NSSize(width: 0, height: 8)
+        textView.textContainer?.lineFragmentPadding = 0
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true

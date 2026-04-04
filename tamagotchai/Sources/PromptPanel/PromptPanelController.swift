@@ -97,7 +97,9 @@ final class PromptPanelController {
         // Show recent sessions if any exist
         SessionStore.shared.loadAll()
         let groups = SessionStore.shared.allSessionsGroupedByDate()
-        if !groups.isEmpty {
+        if groups.isEmpty {
+            panel?.showSessionList([], emptyMessage: "No conversations yet. Start chatting with Tama!")
+        } else {
             panel?.showSessionList(groups)
         }
 
@@ -133,7 +135,9 @@ final class PromptPanelController {
                 newPanel.mascot.setState(.idle)
                 // Re-show session list when input is cleared
                 let groups = SessionStore.shared.allSessionsGroupedByDate()
-                if !groups.isEmpty {
+                if groups.isEmpty {
+                    newPanel.showSessionList([], emptyMessage: "No conversations yet. Start chatting with Tama!")
+                } else {
                     newPanel.showSessionList(groups)
                 }
             } else {
@@ -216,7 +220,15 @@ final class PromptPanelController {
             SessionStore.shared.sessionsGroupedByDate(type: .routines)
         }
         if groups.isEmpty {
-            panel?.hideSessionList()
+            let message = switch tab {
+            case .all:
+                "No conversations yet. Start chatting with Tama!"
+            case .reminders:
+                "No reminders yet. Ask Tama to set one for you."
+            case .routines:
+                "No routines yet. Ask Tama to create one for you."
+            }
+            panel?.showSessionList([], emptyMessage: message)
         } else {
             panel?.showSessionList(groups)
         }
@@ -236,7 +248,7 @@ final class PromptPanelController {
         // Refresh the list
         let groups = SessionStore.shared.allSessionsGroupedByDate()
         if groups.isEmpty {
-            panel?.hideSessionList()
+            panel?.showSessionList([], emptyMessage: "No conversations yet. Start chatting with Tama!")
         } else {
             panel?.showSessionList(groups)
         }

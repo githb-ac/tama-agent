@@ -73,8 +73,8 @@ final class SessionListView: NSView {
         ])
     }
 
-    /// Reloads the session list with grouped data.
-    func reload(groups: [(label: String, sessions: [ChatSession])]) {
+    /// Reloads the session list with grouped data, or shows an empty state message.
+    func reload(groups: [(label: String, sessions: [ChatSession])], emptyMessage: String? = nil) {
         // Remove old views and tracking areas
         for (area, view) in rowTrackingAreas {
             view.removeTrackingArea(area)
@@ -82,11 +82,15 @@ final class SessionListView: NSView {
         rowTrackingAreas.removeAll()
         contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        for group in groups {
-            contentStack.addArrangedSubview(makeSectionHeader(group.label))
-            for session in group.sessions {
-                let row = makeSessionRow(session)
-                contentStack.addArrangedSubview(row)
+        if groups.isEmpty, let emptyMessage {
+            contentStack.addArrangedSubview(makeEmptyState(emptyMessage))
+        } else {
+            for group in groups {
+                contentStack.addArrangedSubview(makeSectionHeader(group.label))
+                for session in group.sessions {
+                    let row = makeSessionRow(session)
+                    contentStack.addArrangedSubview(row)
+                }
             }
         }
 
@@ -95,6 +99,28 @@ final class SessionListView: NSView {
     }
 
     // MARK: - Row Construction
+
+    private func makeEmptyState(_ message: String) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(wrappingLabelWithString: message)
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = .secondaryLabelColor
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(label)
+
+        NSLayoutConstraint.activate([
+            container.heightAnchor.constraint(equalToConstant: 80),
+            label.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 20),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -20),
+        ])
+
+        return container
+    }
 
     private func makeSectionHeader(_ title: String) -> NSView {
         let container = NSView()
