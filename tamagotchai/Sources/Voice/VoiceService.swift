@@ -45,7 +45,7 @@ final class VoiceService: @unchecked Sendable {
 
     /// Silence duration to auto-finalize after the user stops speaking.
     /// Both audio RMS and transcription updates must be idle for this long.
-    private let silenceWindow: TimeInterval = 2.5
+    private let silenceWindow: TimeInterval = 1.0
 
     /// Whether the user has spoken at all during this capture.
     private var hasSpoken = false
