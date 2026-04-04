@@ -29,8 +29,9 @@ enum ClaudeCredentials {
     private static let keychainAccount = "encryption-key"
 
     // Retrieves or generates the encryption key from the macOS Keychain.
+    // Shared with ProviderStore for consistent encryption.
     // swiftlint:disable:next modifier_order
-    private nonisolated(unsafe) static var encryptionKey: SymmetricKey = {
+    nonisolated(unsafe) static var sharedEncryptionKey: SymmetricKey = {
         if let existingKey = loadKeyFromKeychain() {
             return existingKey
         }
@@ -104,7 +105,7 @@ enum ClaudeCredentials {
     static func save(_ credentials: OAuthCredentials) throws {
         do {
             let data = try JSONEncoder().encode(credentials)
-            let sealed = try ChaChaPoly.seal(data, using: encryptionKey)
+            let sealed = try ChaChaPoly.seal(data, using: sharedEncryptionKey)
             let combined = sealed.combined
             try combined.write(to: credentialsURL())
             logger.info("Credentials saved successfully")
@@ -141,7 +142,7 @@ enum ClaudeCredentials {
 
         let data: Data
         do {
-            data = try ChaChaPoly.open(box, using: encryptionKey)
+            data = try ChaChaPoly.open(box, using: sharedEncryptionKey)
         } catch {
             logger.error("Failed to decrypt credentials: \(error.localizedDescription)")
             return nil

@@ -77,10 +77,16 @@ final class AgentLoop {
             let assistantContent = buildAssistantContent(
                 from: response
             )
-            conversation.append([
+            var assistantMessage: [String: Any] = [
                 "role": "assistant",
                 "content": assistantContent,
-            ])
+            ]
+            // Preserve reasoning_content for OpenAI-compatible providers (Moonshot)
+            // that require it in the round-trip when thinking is enabled.
+            if let reasoning = response.reasoningContent {
+                assistantMessage["reasoning_content"] = reasoning
+            }
+            conversation.append(assistantMessage)
 
             // Accumulate text
             accumulatedText += response.textContent
@@ -173,6 +179,30 @@ final class AgentLoop {
         var results: [[String: Any]] = []
 
         for call in toolCalls {
+            // Provider built-in tools (e.g. Moonshot $web_search) are executed
+            // server-side — don't run locally, just supply a synthetic tool_result
+            // so the conversation round-trip stays valid.
+            if call.name.hasPrefix("$") {
+                logger.info("Provider built-in tool: \(call.name) — skipping local execution")
+                // Built-in tools like $web_search are executed server-side.
+                // Per Moonshot docs: return tool_call.function.arguments as-is.
+                let argsJson: String = if let data = try? JSONSerialization.data(withJSONObject: call.input),
+                                          let str = String(data: data, encoding: .utf8)
+                {
+                    str
+                } else {
+                    "{}"
+                }
+                onEvent(.toolResult(name: call.name, output: argsJson))
+                results.append([
+                    "type": "tool_result",
+                    "tool_use_id": call.id,
+                    "name": call.name,
+                    "content": argsJson,
+                ])
+                continue
+            }
+
             let output: String
             nonisolated(unsafe) let args = call.input
             if let tool = registry.tool(named: call.name) {

@@ -93,6 +93,7 @@ final class PromptPanelController {
         isDismissedByAgent = false
         isPanelDismissed = false
         currentSession = nil
+        currentTab = .chats
         ensurePanel()
         conversationHistory = []
         panel?.present()
@@ -166,6 +167,13 @@ final class PromptPanelController {
         newPanel.onTabChanged = { [weak self] tab in
             self?.handleTabChanged(tab)
         }
+        newPanel.onToolSelected = { [weak self] tool in
+            self?.panel?.pushToolView(tool: tool)
+        }
+        newPanel.onToolSearchChanged = { [weak self] query in
+            let filtered = PanelToolRegistry.shared.search(query: query)
+            self?.panel?.filterToolList(tools: filtered)
+        }
         newPanel.onInterrupt = { [weak self] in
             guard let self else { return false }
             return interruptAgent()
@@ -215,7 +223,27 @@ final class PromptPanelController {
 
     /// Handles tab changes in the session list.
     private func handleTabChanged(_ tab: SessionTab) {
+        let wasOnTools = currentTab == .tools
         currentTab = tab
+
+        // Tools tab has its own display path — no voice capture
+        if tab == .tools {
+            SpeechService.shared.stop()
+            VoiceService.shared.stopFollowUpCapture()
+            panel?.endVoiceSession()
+            isVoiceMode = false
+            panel?.showToolList(tools: PanelToolRegistry.shared.allTools)
+            return
+        }
+
+        // Hide tool list if switching away from Tools
+        panel?.hideToolList()
+
+        // Restart voice capture when returning from the Tools tab
+        if wasOnTools {
+            startVoiceCapture()
+        }
+
         let groups: [(label: String, sessions: [ChatSession])] = switch tab {
         case .chats:
             SessionStore.shared.allSessionsGroupedByDate()
@@ -223,6 +251,8 @@ final class PromptPanelController {
             SessionStore.shared.sessionsGroupedByDate(type: .reminders)
         case .routines:
             SessionStore.shared.sessionsGroupedByDate(type: .routines)
+        case .tools:
+            [] // unreachable — handled above
         }
         if groups.isEmpty {
             let message = switch tab {
@@ -232,6 +262,8 @@ final class PromptPanelController {
                 "No reminders yet. Ask Tama to set one for you."
             case .routines:
                 "No routines yet. Ask Tama to create one for you."
+            case .tools:
+                "" // unreachable
             }
             panel?.showSessionList([], emptyMessage: message)
         } else {
@@ -344,6 +376,7 @@ final class PromptPanelController {
             MenuBarMood.shared.setActivity(.error)
             let err = AppError.notConnected
             panel?.showError(title: err.title, message: err.message, tint: err.tint)
+            startVoiceCapture()
             return
         }
 
@@ -508,6 +541,9 @@ final class PromptPanelController {
 
     private var agentSystemPrompt: String {
         let cwd = Self.ensureWorkspace()
+        let webSearchNote = ClaudeService.shared.currentModel.provider == .moonshot
+            ? " you also have built-in web search — use it freely to find current information."
+            : ""
         return """
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \
@@ -516,18 +552,21 @@ final class PromptPanelController {
         routines (create_routine) that run on a schedule, list them \
         (list_schedules), and delete them (delete_schedule). \
         reminders fire macOS notifications; routines run an LLM prompt \
-        and notify with the result. working directory: \(cwd)
+        and notify with the result.\(webSearchNote) working directory: \(cwd)
         """
     }
 
     private var voiceSystemPrompt: String {
         let cwd = Self.ensureWorkspace()
+        let webSearchNote = ClaudeService.shared.currentModel.provider == .moonshot
+            ? " you also have built-in web search — use it freely to find current information."
+            : ""
         return """
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \
         search code (grep/find), list directories (ls), fetch web \
         pages, and manage reminders/routines (create_reminder, \
-        create_routine, list_schedules, delete_schedule). \
+        create_routine, list_schedules, delete_schedule).\(webSearchNote) \
         working directory: \(cwd)
 
         CRITICAL: this is a voice conversation. your response will be spoken aloud. \

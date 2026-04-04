@@ -1,7 +1,8 @@
 import Foundation
 import os
 
-/// Singleton service for calling the Anthropic Messages API with OAuth credentials.
+/// Singleton service for calling AI APIs. Supports Anthropic (Claude) and
+/// OpenAI-compatible providers (Moonshot/Kimi) via ProviderStore.
 @MainActor
 final class ClaudeService {
     static let shared = ClaudeService()
@@ -10,8 +11,6 @@ final class ClaudeService {
         subsystem: "com.unstablemind.tamagotchai",
         category: "claude"
     )
-    private let apiURL = URL(string: "https://api.anthropic.com/v1/messages")!
-    private let model = "claude-haiku-4-5-20251001"
 
     /// Dedicated session with resource timeout so streaming connections
     /// don't hang forever on network issues (default is 7 days).
@@ -39,110 +38,35 @@ final class ClaudeService {
     - never say "I'm an AI" or "as a language model" — you're their homie on the desktop
     """
 
-    /// Current credentials — loaded from encrypted file on init.
-    private(set) var credentials: OAuthCredentials?
+    var isLoggedIn: Bool { ProviderStore.shared.hasAnyCredentials }
 
-    var isLoggedIn: Bool { credentials != nil }
+    private init() {}
 
-    private init() {
-        credentials = ClaudeCredentials.load()
-    }
-
-    /// Update credentials after login/refresh.
-    func setCredentials(_ creds: OAuthCredentials?) {
-        credentials = creds
-    }
-
-    func logout() {
-        credentials = nil
-        ClaudeCredentials.delete()
+    /// The currently selected model from ProviderStore.
+    var currentModel: ModelInfo {
+        ProviderStore.shared.selectedModel
     }
 
     // MARK: - API
 
     /// Sends a conversation with tool definitions and streams events back.
-    /// Returns a structured ClaudeResponse with both text and tool_use blocks.
     func sendWithTools(
         messages: [[String: Any]],
         tools: [[String: Any]],
         systemPrompt: String? = nil,
         onEvent: @escaping @Sendable (StreamEvent) -> Void
     ) async throws -> ClaudeResponse {
-        logger.info("sendWithTools — messages: \(messages.count), tools: \(tools.count)")
-        let token = try await validAccessToken()
-        return try await streamRequestWithTools(
+        let model = currentModel
+        logger.info("sendWithTools — model: \(model.id), messages: \(messages.count), tools: \(tools.count)")
+
+        let token = try await ProviderStore.shared.validAccessToken(for: model.provider)
+
+        return try await streamOpenAIRequest(
             token: token,
+            model: model,
             messages: messages,
             tools: tools,
             systemPrompt: systemPrompt,
-            onEvent: onEvent
-        )
-    }
-
-    // MARK: - Token Management
-
-    private func validAccessToken() async throws -> String {
-        guard var creds = credentials else {
-            logger.warning("Access token requested but not logged in")
-            throw ClaudeServiceError.notLoggedIn
-        }
-
-        if creds.isExpired {
-            logger.info("Token expired, refreshing…")
-            do {
-                let refreshed = try await ClaudeOAuth.refreshToken(
-                    creds.refreshToken
-                )
-                try ClaudeCredentials.save(refreshed)
-                credentials = refreshed
-                creds = refreshed
-                logger.info("Token refreshed successfully, expires at \(refreshed.expiresAt)")
-            } catch {
-                logger.error("Token refresh failed: \(error.localizedDescription)")
-                throw error
-            }
-        }
-
-        return creds.accessToken
-    }
-
-    // MARK: - Tool-aware Streaming
-
-    private func streamRequestWithTools(
-        token: String,
-        messages: [[String: Any]],
-        tools: [[String: Any]],
-        systemPrompt: String?,
-        onEvent: @escaping @Sendable (StreamEvent) -> Void
-    ) async throws -> ClaudeResponse {
-        let request = try buildRequest(
-            token: token,
-            messages: messages,
-            tools: tools,
-            systemPrompt: systemPrompt
-        )
-
-        let (bytes, response) = try await streamingSession.bytes(
-            for: request
-        )
-
-        guard let http = response as? HTTPURLResponse,
-              (200 ..< 300).contains(http.statusCode)
-        else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-            // Drain the error body so we get the actual API error message.
-            var bodyData = Data()
-            for try await byte in bytes {
-                bodyData.append(byte)
-                if bodyData.count > 4096 { break }
-            }
-            let body = String(data: bodyData, encoding: .utf8) ?? "<no body>"
-            logger.error("API request failed — HTTP \(code): \(body)")
-            throw ClaudeServiceError.apiError(statusCode: code, body: body)
-        }
-
-        return try await parseToolStream(
-            bytes: bytes,
             onEvent: onEvent
         )
     }
@@ -174,105 +98,209 @@ final class ClaudeService {
         """
     }
 
-    // MARK: - Request Building
+    // MARK: - OpenAI-Compatible Streaming (Moonshot)
 
-    private func buildRequest(
+    private func streamOpenAIRequest(
         token: String,
+        model: ModelInfo,
+        messages: [[String: Any]],
+        tools: [[String: Any]],
+        systemPrompt: String?,
+        onEvent: @escaping @Sendable (StreamEvent) -> Void
+    ) async throws -> ClaudeResponse {
+        let request = try buildOpenAIRequest(
+            token: token,
+            model: model,
+            messages: messages,
+            tools: tools,
+            systemPrompt: systemPrompt
+        )
+
+        let (bytes, response) = try await streamingSession.bytes(for: request)
+
+        guard let http = response as? HTTPURLResponse,
+              (200 ..< 300).contains(http.statusCode)
+        else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            var bodyData = Data()
+            for try await byte in bytes {
+                bodyData.append(byte)
+                if bodyData.count > 4096 { break }
+            }
+            let body = String(data: bodyData, encoding: .utf8) ?? "<no body>"
+            logger.error("OpenAI API failed — HTTP \(code): \(body)")
+            throw ClaudeServiceError.apiError(statusCode: code, body: body)
+        }
+
+        let parser = OpenAIStreamParser(onEvent: onEvent)
+        try await parser.parse(bytes: bytes)
+        let result = parser.buildResponse()
+        onEvent(.response(result))
+        return result
+    }
+
+    private func buildOpenAIRequest(
+        token: String,
+        model: ModelInfo,
         messages: [[String: Any]],
         tools: [[String: Any]]?,
         systemPrompt: String?
     ) throws -> URLRequest {
-        var request = URLRequest(url: apiURL)
+        let url = URL(string: model.provider.baseURL)!
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue(
-            "Bearer \(token)",
-            forHTTPHeaderField: "Authorization"
-        )
-        request.setValue(
-            "2023-06-01",
-            forHTTPHeaderField: "anthropic-version"
-        )
-        request.setValue(
-            "claude-code-20250219,oauth-2025-04-20,prompt-caching-2024-07-31",
-            forHTTPHeaderField: "anthropic-beta"
-        )
-        request.setValue(
-            "application/json",
-            forHTTPHeaderField: "Content-Type"
-        )
-        request.setValue(
-            "tamagotchai/1.0",
-            forHTTPHeaderField: "User-Agent"
-        )
-        request.setValue("tamagotchai", forHTTPHeaderField: "x-app")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("tamagotchai/1.0", forHTTPHeaderField: "User-Agent")
 
-        var systemBlocks: [[String: Any]] = []
-
-        // Base prompt — static, cached
-        var baseBlock: [String: Any] = [
-            "type": "text",
-            "text": baseSystemPrompt,
-        ]
-        if systemPrompt != nil {
-            // Cache the base block when there's extra context after it
-            baseBlock["cache_control"] = ["type": "ephemeral"]
-        }
-        systemBlocks.append(baseBlock)
-
-        // Extra context (tools description, etc.) — cached
+        // Build system message content
+        var systemContent = baseSystemPrompt
         if let extra = systemPrompt {
-            systemBlocks.append([
-                "type": "text",
-                "text": extra,
-                "cache_control": ["type": "ephemeral"],
-            ])
+            systemContent += "\n\n" + extra
         }
+        systemContent += "\n\n" + dynamicContext()
 
-        // Dynamic context — current time, never cached
-        systemBlocks.append([
-            "type": "text",
-            "text": dynamicContext(),
-        ])
+        // OpenAI format: system message as first message in array
+        var openAIMessages: [[String: Any]] = [
+            ["role": "system", "content": systemContent],
+        ]
+
+        // Convert Anthropic-format messages to OpenAI format
+        for msg in messages {
+            openAIMessages.append(contentsOf: convertMessageToOpenAI(msg))
+        }
 
         var body: [String: Any] = [
-            "model": model,
-            "max_tokens": 16384,
+            "model": model.id,
+            "max_tokens": model.maxOutputTokens,
             "stream": true,
-            "system": systemBlocks,
-            "messages": messages,
+            "messages": openAIMessages,
         ]
 
-        // Merge client tools with server-side tools (web search)
-        var allTools: [[String: Any]] = tools ?? []
-        allTools.append([
-            "type": "web_search_20250305",
-            "name": "web_search",
-            "max_uses": 5,
-        ])
-        body["tools"] = allTools
+        // Convert tools from Anthropic format to OpenAI function calling format
+        if let tools, !tools.isEmpty {
+            var openAITools: [[String: Any]] = tools.compactMap { convertToolToOpenAI($0) }
 
-        request.httpBody = try JSONSerialization.data(
-            withJSONObject: body
-        )
+            // Moonshot: inject built-in $web_search tool
+            if model.provider == .moonshot {
+                openAITools.append([
+                    "type": "builtin_function",
+                    "function": ["name": "$web_search"],
+                ])
+            }
 
-        // Prevent indefinite hangs on dropped connections during streaming.
-        // Default timeoutInterval is 60s which is fine for initial response.
+            body["tools"] = openAITools
+        }
+
+        // Moonshot: disable thinking — required when $web_search is in tools
+        if model.provider == .moonshot {
+            body["thinking"] = ["type": "disabled"]
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         request.timeoutInterval = 120
 
         return request
     }
 
-    // MARK: - Stream Parsing
+    // MARK: - Format Conversion
 
-    private func parseToolStream(
-        bytes: URLSession.AsyncBytes,
-        onEvent: @escaping @Sendable (StreamEvent) -> Void
-    ) async throws -> ClaudeResponse {
-        let parser = StreamParser(onEvent: onEvent)
-        try await parser.parse(bytes: bytes)
-        let result = parser.buildResponse()
-        onEvent(.response(result))
-        return result
+    /// Convert an Anthropic-format message to OpenAI format.
+    /// Returns an array because one Anthropic message (with multiple tool_results)
+    /// may expand into multiple OpenAI messages.
+    private func convertMessageToOpenAI(_ msg: [String: Any]) -> [[String: Any]] {
+        guard let role = msg["role"] as? String else { return [msg] }
+
+        // Simple string content
+        if let content = msg["content"] as? String {
+            return [["role": role, "content": content]]
+        }
+
+        // Array content (Anthropic uses content arrays for tool results)
+        guard let blocks = msg["content"] as? [[String: Any]] else { return [msg] }
+
+        // For assistant messages with tool_use blocks
+        if role == "assistant" {
+            var content = ""
+            var toolCalls: [[String: Any]] = []
+
+            for block in blocks {
+                guard let type = block["type"] as? String else { continue }
+                if type == "text", let text = block["text"] as? String {
+                    content += text
+                } else if type == "tool_use",
+                          let id = block["id"] as? String,
+                          let name = block["name"] as? String,
+                          let input = block["input"]
+                {
+                    let argsData = (try? JSONSerialization.data(withJSONObject: input)) ?? Data()
+                    let argsStr = String(data: argsData, encoding: .utf8) ?? "{}"
+                    toolCalls.append([
+                        "id": id,
+                        "type": "function",
+                        "function": [
+                            "name": name,
+                            "arguments": argsStr,
+                        ],
+                    ])
+                }
+            }
+
+            var result: [String: Any] = ["role": "assistant"]
+            if !content.isEmpty { result["content"] = content }
+            if !toolCalls.isEmpty { result["tool_calls"] = toolCalls }
+            // Round-trip reasoning_content if present (for providers with thinking)
+            if let reasoning = msg["reasoning_content"] as? String, !reasoning.isEmpty {
+                result["reasoning_content"] = reasoning
+            }
+            return [result]
+        }
+
+        // For user messages with tool_result blocks — each becomes a separate message
+        if role == "user" {
+            var converted: [[String: Any]] = []
+            for block in blocks {
+                guard let type = block["type"] as? String else { continue }
+                if type == "text", let text = block["text"] as? String {
+                    converted.append(["role": "user", "content": text])
+                } else if type == "tool_result",
+                          let toolUseId = block["tool_use_id"] as? String,
+                          let content = block["content"] as? String
+                {
+                    converted.append([
+                        "role": "tool",
+                        "tool_call_id": toolUseId,
+                        "content": content,
+                    ])
+                }
+            }
+            if !converted.isEmpty { return converted }
+        }
+
+        return [msg]
+    }
+
+    /// Convert an Anthropic tool definition to OpenAI function calling format.
+    private func convertToolToOpenAI(_ tool: [String: Any]) -> [String: Any]? {
+        // Skip Anthropic server-side tools (web_search_20250305, etc.)
+        if let type = tool["type"] as? String, type.contains("web_search") {
+            return nil
+        }
+
+        guard let name = tool["name"] as? String else { return nil }
+
+        var function: [String: Any] = ["name": name]
+        if let desc = tool["description"] as? String {
+            function["description"] = desc
+        }
+        if let schema = tool["input_schema"] as? [String: Any] {
+            function["parameters"] = schema
+        }
+
+        return [
+            "type": "function",
+            "function": function,
+        ]
     }
 
     // MARK: - Errors
@@ -285,11 +313,11 @@ final class ClaudeService {
         var errorDescription: String? {
             switch self {
             case .notLoggedIn:
-                "Not logged in to Claude. Use the menu bar to log in."
+                "Not logged in. Add an API key in Settings."
             case let .apiError(statusCode, body):
-                "Claude API error (HTTP \(statusCode)): \(body)"
+                "API error (HTTP \(statusCode)): \(body)"
             case let .streamError(message):
-                "Claude error: \(message)"
+                "Stream error: \(message)"
             }
         }
     }

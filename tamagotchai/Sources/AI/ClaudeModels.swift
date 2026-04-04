@@ -12,10 +12,13 @@ enum ContentBlock: @unchecked Sendable {
     case serverToolResultError(toolUseId: String, errorCode: String)
 }
 
-/// Structured response from a Claude API call.
+/// Structured response from an API call (Anthropic or OpenAI-compatible).
 struct ClaudeResponse: @unchecked Sendable {
     let content: [ContentBlock]
     let stopReason: String?
+    /// Accumulated reasoning/thinking content from OpenAI-compatible providers (Moonshot).
+    /// Must be round-tripped in assistant messages when thinking is enabled.
+    let reasoningContent: String?
 
     var textContent: String {
         content.compactMap { block in

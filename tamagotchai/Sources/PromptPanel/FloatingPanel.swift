@@ -85,6 +85,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Once the panel reaches max height, it stays there for the session.
     var reachedMaxHeight = false
 
+    /// When true, hideSessionList becomes a no-op. Set before showError
+    /// to prevent the animated hide from collapsing the panel.
+    var suppressHideSessionList = false
+
     /// Whether the panel was activated by voice (shows waveform).
     var isVoiceActivated = false
 
@@ -136,24 +140,15 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     }()
 
     /// The session history list shown when the panel opens.
-    /// Tab bar for switching between Chats / Reminders / Routines.
-    private lazy var tabBar: NSSegmentedControl = {
-        let control = NSSegmentedControl(
-            labels: ["Chats", "Reminders", "Routines"],
-            trackingMode: .selectOne,
-            target: self,
-            action: #selector(tabBarChanged(_:))
-        )
-        control.selectedSegment = 0
-        control.segmentStyle = .texturedRounded
-        control.translatesAutoresizingMaskIntoConstraints = false
-        control.font = .systemFont(ofSize: 14, weight: .semibold)
-        control.wantsLayer = true
-        control.layer?.cornerRadius = 8
-        control.layer?.masksToBounds = true
-        control.layer?.backgroundColor = NSColor(white: 0.25, alpha: 1).cgColor
-        control.selectedSegmentBezelColor = NSColor(white: 0.38, alpha: 1)
-        return control
+    /// Custom animated tab bar with a sliding highlight indicator.
+    lazy var tabBar: AnimatedTabBar = {
+        let bar = AnimatedTabBar(
+            labels: ["Chats", "Reminders", "Routines", "Tools"]
+        ) { [weak self] index in
+            self?.tabBarChanged(index)
+        }
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        return bar
     }()
 
     /// Container for the tab bar so we can show/hide it as a group with consistent padding.
@@ -164,6 +159,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         v.addSubview(tabBar)
         NSLayoutConstraint.activate([
             tabBar.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 12),
+            tabBar.trailingAnchor.constraint(lessThanOrEqualTo: v.trailingAnchor, constant: -12),
             tabBar.topAnchor.constraint(equalTo: v.topAnchor, constant: 8),
             tabBar.bottomAnchor.constraint(equalTo: v.bottomAnchor, constant: -4),
         ])
@@ -189,6 +185,39 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Height constraint for the response scroll view.
     var responseHeightConstraint: NSLayoutConstraint?
 
+    // MARK: - Tools Mode
+
+    /// The tool list view shown when the Tools tab is active.
+    lazy var toolListView: ToolListView = {
+        let v = ToolListView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.onSelectTool = { [weak self] tool in
+            self?.onToolSelected?(tool)
+        }
+        return v
+    }()
+
+    /// Height constraint for the tool list.
+    var toolListHeightConstraint: NSLayoutConstraint?
+
+    /// Whether the panel is currently in Tools mode (Tools tab selected).
+    var isToolsMode = false
+
+    /// Whether we're currently viewing a specific tool's drilled-in UI.
+    var isInsideTool = false
+
+    /// The currently active tool (when drilled in).
+    var activeTool: PanelTool?
+
+    /// The view pushed by the active tool.
+    var activeToolView: NSView?
+
+    /// Height constraint for the active tool view.
+    var activeToolHeightConstraint: NSLayoutConstraint?
+
+    // MARK: - Callbacks
+
     /// Called when the user presses Return in the text field.
     var onSubmit: ((String) -> Void)?
 
@@ -207,8 +236,14 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Called when the user deletes a session from the history list.
     var onDeleteSession: ((ChatSession) -> Void)?
 
-    /// Called when the user changes the session list tab (All / Reminders / Routines).
+    /// Called when the user changes the session list tab.
     var onTabChanged: ((SessionTab) -> Void)?
+
+    /// Called when the user selects a tool from the tool list.
+    var onToolSelected: ((PanelTool) -> Void)?
+
+    /// Called when the input field text changes while in Tools mode.
+    var onToolSearchChanged: ((String) -> Void)?
 
     // MARK: - UI Components
 
@@ -317,7 +352,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         return scrollView
     }()
 
-    private lazy var mainStack: NSStackView = {
+    lazy var mainStack: NSStackView = {
         let stack = FlippedStackView()
         stack.orientation = .vertical
         stack.spacing = 0
@@ -394,15 +429,20 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             mainStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor),
         ])
 
-        // Add divider + tab bar + session list + response to stack, keep them hidden
+        // Add divider + tab bar + session list + tool list + response to stack, keep them hidden
         mainStack.addArrangedSubview(dividerContainer)
         mainStack.addArrangedSubview(tabBarContainer)
         mainStack.addArrangedSubview(sessionListView)
+        mainStack.addArrangedSubview(toolListView)
         mainStack.addArrangedSubview(responseScrollView)
 
         let sessionHeight = sessionListView.heightAnchor.constraint(equalToConstant: 0)
         sessionHeight.isActive = true
         sessionListHeightConstraint = sessionHeight
+
+        let toolListHeight = toolListView.heightAnchor.constraint(equalToConstant: 0)
+        toolListHeight.isActive = true
+        toolListHeightConstraint = toolListHeight
 
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true
@@ -442,9 +482,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// The intrinsic height of the tab bar container (top padding + control + bottom padding).
     let tabBarHeight: CGFloat = 44
 
-    @objc private func tabBarChanged(_ sender: NSSegmentedControl) {
+    private func tabBarChanged(_ index: Int) {
         ButtonSound.shared.play()
-        let tab = SessionTab(rawValue: sender.selectedSegment) ?? .chats
+        let tab = SessionTab(rawValue: index) ?? .chats
         onTabChanged?(tab)
     }
 
@@ -464,6 +504,11 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, event.keyCode == 53 {
+            // If inside a tool's drilled-in view, pop back to tool list
+            if isInsideTool {
+                popToolView()
+                return
+            }
             // Try interrupt first — if something was interrupted, don't dismiss
             if onInterrupt?() == true {
                 return
@@ -489,6 +534,11 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         doCommandBy commandSelector: Selector
     ) -> Bool {
         if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            // In tools mode, Return does nothing (filtering is live)
+            if isToolsMode, !isInsideTool { return true }
+            // Inside a tool, Return is consumed (tool handles its own interaction)
+            if isInsideTool { return true }
+
             let text = inputField.stringValue.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
@@ -503,47 +553,33 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Shows a styled error block in the response area with a tinted background, bold title, and message.
     func showError(title: String, message: String, tint: NSColor) {
-        let block = NSMutableAttributedString()
+        // Prevent hideSessionList from running (it races with this method)
+        suppressHideSessionList = true
+
+        // Instantly clear session/tool lists, keep tab bar + divider visible
+        sessionListView.isHidden = true
+        sessionListView.alphaValue = 1
+        sessionListHeightConstraint?.constant = 0
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
+        dividerContainer.isHidden = false
+        dividerContainer.alphaValue = 1
+        tabBarContainer.isHidden = false
+        tabBarContainer.alphaValue = 1
 
         let titleFont = NSFont.systemFont(ofSize: 16, weight: .semibold)
         let messageFont = NSFont.systemFont(ofSize: 14, weight: .regular)
         let textColor = NSColor.white
-
-        // Build paragraph style
-        let style = NSMutableParagraphStyle()
-        style.lineSpacing = 4
-        style.paragraphSpacing = 0
-
-        // Title line
-        block.append(NSAttributedString(
-            string: title + "\n",
-            attributes: [
-                .font: titleFont,
-                .foregroundColor: textColor,
-                .paragraphStyle: style,
-            ]
-        ))
-
-        // Message line
-        let msgStyle = NSMutableParagraphStyle()
-        msgStyle.lineSpacing = 3
-        block.append(NSAttributedString(
-            string: message,
-            attributes: [
-                .font: messageFont,
-                .foregroundColor: textColor.withAlphaComponent(0.85),
-                .paragraphStyle: msgStyle,
-            ]
-        ))
 
         // Wrap in a rounded-rect background using NSTextBlock
         let errorBlock = ErrorTextBlock(tint: tint)
         let blockStyle = NSMutableParagraphStyle()
         blockStyle.textBlocks = [errorBlock]
         blockStyle.lineSpacing = 4
-        blockStyle.paragraphSpacingBefore = 0
+        blockStyle.paragraphSpacingBefore = 8
 
         let wrapped = NSMutableAttributedString()
+
         // Use a single paragraph with line break so NSTextBlock wraps both lines
         let titleStr = NSMutableAttributedString(
             string: title,
@@ -565,7 +601,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             .paragraphStyle, value: blockStyle,
             range: NSRange(location: 0, length: wrapped.length)
         )
-        // NSTextBlock needs a trailing newline
+        // NSTextBlock needs a trailing newline to close the block
         let resetStyle = NSMutableParagraphStyle()
         resetStyle.paragraphSpacingBefore = 0
         resetStyle.paragraphSpacing = 0
@@ -577,7 +613,79 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             ]
         ))
 
-        showResponse(wrapped)
+        // Separate spacer paragraph OUTSIDE the NSTextBlock for gap between errors
+        let spacerStyle = NSMutableParagraphStyle()
+        spacerStyle.minimumLineHeight = 12
+        spacerStyle.maximumLineHeight = 12
+        wrapped.append(NSAttributedString(
+            string: "\n",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 1),
+                .foregroundColor: NSColor.clear,
+                .paragraphStyle: spacerStyle,
+            ]
+        ))
+
+        // Commit the error block into the conversation so subsequent messages
+        // append correctly rather than overlapping.
+        conversationAttributed.append(wrapped)
+        conversationBaseLength = conversationAttributed.length
+
+        // Stop any in-progress streaming state
+        streamFinished = true
+        typingFinished = true
+        reachedMaxHeight = false
+        lastTargetHeight = 0
+        stopDisplayLink()
+        stopCursorBlink()
+        pendingMarkdown = ""
+        displayedMarkdown = ""
+        rawMarkdown = ""
+
+        // Disable adaptive color mapping so white text stays white on the dark panel
+        responseTextView.usesAdaptiveColorMappingForDarkAppearance = false
+
+        // Update text storage to the full conversation (including error)
+        if let storage = responseTextView.textStorage {
+            storage.beginEditing()
+            storage.setAttributedString(conversationAttributed)
+            storage.endEditing()
+        }
+
+        // Show and size the response area
+        dividerContainer.isHidden = false
+        responseScrollView.isHidden = false
+        dividerContainer.alphaValue = 1
+        responseScrollView.alphaValue = 1
+        tabBarContainer.isHidden = false
+        tabBarContainer.alphaValue = 1
+
+        // Force layout so we get accurate text height measurement
+        contentView?.layoutSubtreeIfNeeded()
+        responseTextView.layoutManager?.ensureLayout(for: responseTextView.textContainer!)
+        let contentHeight = responseTextView.layoutManager?.usedRect(
+            for: responseTextView.textContainer!
+        ).height ?? 0
+        let textInset = responseTextView.textContainerInset.height * 2
+        let targetHeight = min(contentHeight + textInset, responseMaxHeight)
+
+        responseHeightConstraint?.constant = targetHeight
+        lastTargetHeight = targetHeight
+
+        let tabBarExtra: CGFloat = tabBarContainer.isHidden ? 0 : tabBarHeight
+        let panelHeight = inputHeight + 1 + tabBarExtra + targetHeight
+        let newOriginY = topY - panelHeight
+        setFrame(
+            NSRect(x: frame.origin.x, y: newOriginY, width: panelWidth, height: panelHeight),
+            display: true
+        )
+
+        contentView?.layoutSubtreeIfNeeded()
+        positionMascotOverSpacer()
+        invalidateShadow()
+        scrollToBottomInstantly()
+        makeFirstResponder(inputField)
+        suppressHideSessionList = false
     }
 
     /// Shows the response area with a pre-built attributed string.
@@ -703,6 +811,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Returns the full assistant response text for conversation history tracking.
     @discardableResult
     func streamResponse(_ stream: AsyncThrowingStream<String, Error>, userText: String = "") async throws -> String {
+        // Re-enable adaptive color mapping (may have been disabled by showError)
+        responseTextView.usesAdaptiveColorMappingForDarkAppearance = true
+
         // Build user bubble attributed string before appending
         let userBubble = userText.isEmpty ? nil : makeUserBubble(userText)
 
@@ -1177,7 +1288,8 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         lastTargetHeight = targetHeight
         invalidateShadow()
 
-        let newPanelHeight = inputHeight + 1 + targetHeight
+        let tabBarExtra: CGFloat = tabBarContainer.isHidden ? 0 : tabBarHeight
+        let newPanelHeight = inputHeight + 1 + tabBarExtra + targetHeight
         let newOriginY = topY - newPanelHeight
         let newFrame = NSRect(
             x: frame.origin.x,
@@ -1226,7 +1338,12 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Shows the session history list with grouped sessions, or an empty state message.
     func showSessionList(_ groups: [(label: String, sessions: [ChatSession])], emptyMessage: String? = nil) {
-        let alreadyVisible = !sessionListView.isHidden
+        // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
+        let alreadyVisible = !sessionListView.isHidden || !tabBarContainer.isHidden
+
+        // Hide tool list if switching back from Tools tab
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
 
         // Reset response area so it doesn't ghost behind the session list
         responseScrollView.isHidden = true
@@ -1302,27 +1419,43 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         makeFirstResponder(inputField)
     }
 
-    /// Hides the session list and tab bar.
+    /// Hides the session list, tool list, and tab bar.
     func hideSessionList() {
+        guard !suppressHideSessionList else { return }
+
         let sessionListVisible = !sessionListView.isHidden
+        let toolListVisible = !toolListView.isHidden
         let tabBarVisible = !tabBarContainer.isHidden
 
-        guard sessionListVisible || tabBarVisible else { return }
+        guard sessionListVisible || toolListVisible || tabBarVisible else { return }
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.15
             ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
             if sessionListVisible { self.sessionListView.animator().alphaValue = 0 }
+            if toolListVisible { self.toolListView.animator().alphaValue = 0 }
             if tabBarVisible { self.tabBarContainer.animator().alphaValue = 0 }
         } completionHandler: {
             MainActor.assumeIsolated { [weak self] in
                 guard let self else { return }
                 sessionListView.isHidden = true
                 sessionListHeightConstraint?.constant = 0
+                toolListView.isHidden = true
+                toolListHeightConstraint?.constant = 0
+
+                // If the response area is now showing (error or streaming response),
+                // keep the tab bar visible — don't collapse it.
+                guard responseScrollView.isHidden else {
+                    invalidateShadow()
+                    return
+                }
+
                 tabBarContainer.isHidden = true
-                // Reset tab to "All" for next open
-                tabBar.selectedSegment = 0
-                // If response area is also hidden, collapse the divider too
+                // Reset tab to "Chats" for next open
+                tabBar.selectTab(0, animated: false)
+                // Reset tools state
+                hideToolList()
+                // Collapse the divider too
                 if responseScrollView.isHidden {
                     dividerContainer.isHidden = true
                     let panelFrame = NSRect(
@@ -1343,6 +1476,174 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     func controlTextDidChange(_: Notification) {
         let text = inputField.stringValue
-        onTextChanged?(text)
+        if isToolsMode {
+            if isInsideTool {
+                activeTool?.filterContent(query: text)
+            } else {
+                onToolSearchChanged?(text)
+            }
+        } else {
+            onTextChanged?(text)
+        }
+    }
+
+    // MARK: - Tool List
+
+    /// Shows the tool list (called when Tools tab is selected).
+    func showToolList(tools: [PanelTool]) {
+        // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
+        let isTabSwitch = !tabBarContainer.isHidden
+
+        isToolsMode = true
+        isInsideTool = false
+        activeTool = nil
+
+        // Hide session list and response area
+        sessionListView.isHidden = true
+        sessionListHeightConstraint?.constant = 0
+        responseScrollView.isHidden = true
+        responseHeightConstraint?.constant = 0
+
+        // Remove any pushed tool view
+        if let activeToolView {
+            activeToolView.removeFromSuperview()
+            activeToolHeightConstraint = nil
+            self.activeToolView = nil
+        }
+
+        // Update input field
+        inputField.placeholderString = "Search tools..."
+        inputField.stringValue = ""
+
+        // Reload tool list
+        toolListView.reload(tools: tools)
+
+        let listTargetHeight: CGFloat = min(toolListView.contentHeight, responseMaxHeight - tabBarHeight)
+
+        if !isTabSwitch {
+            toolListHeightConstraint?.constant = 0
+        }
+        dividerContainer.isHidden = false
+        tabBarContainer.isHidden = false
+        toolListView.isHidden = false
+        dividerContainer.alphaValue = 1
+        tabBarContainer.alphaValue = 1
+        toolListView.alphaValue = 1
+
+        let newPanelHeight = inputHeight + 1 + tabBarHeight + listTargetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        if isTabSwitch {
+            // Instant swap for tab switches — no animation prevents vertical jitter
+            toolListHeightConstraint?.constant = listTargetHeight
+            setFrame(newFrame, display: true)
+            positionMascotOverSpacer()
+            toolListView.scrollToTop()
+        } else {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                ctx.allowsImplicitAnimation = true
+                self.toolListHeightConstraint?.animator().constant = listTargetHeight
+                self.animator().setFrame(newFrame, display: true)
+            } completionHandler: {
+                MainActor.assumeIsolated { [weak self] in
+                    self?.positionMascotOverSpacer()
+                    self?.toolListView.scrollToTop()
+                }
+            }
+        }
+
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
+    /// Lightweight filter — only reloads the tool list data without touching the input field or frame.
+    func filterToolList(tools: [PanelTool]) {
+        toolListView.reload(tools: tools)
+        toolListView.scrollToTop()
+    }
+
+    /// Hides the tool list (called when switching away from Tools tab).
+    func hideToolList() {
+        isToolsMode = false
+        isInsideTool = false
+        activeTool = nil
+
+        // Remove any pushed tool view
+        if let activeToolView {
+            activeToolView.removeFromSuperview()
+            activeToolHeightConstraint = nil
+            self.activeToolView = nil
+        }
+
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
+    }
+
+    /// Pushes a tool's content view, replacing the tool list.
+    func pushToolView(tool: PanelTool) {
+        isInsideTool = true
+        activeTool = tool
+        inputField.placeholderString = tool.searchPlaceholder
+        inputField.stringValue = ""
+
+        // Hide the tool list
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
+
+        // Create and insert the tool's view
+        let view = tool.makeView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        activeToolView = view
+
+        // Insert tool view in the mainStack where the tool list was
+        let toolListIndex = mainStack.arrangedSubviews.firstIndex(of: toolListView) ?? 3
+        mainStack.insertArrangedSubview(view, at: toolListIndex + 1)
+
+        let targetHeight = responseMaxHeight - tabBarHeight
+        let heightConstraint = view.heightAnchor.constraint(equalToConstant: targetHeight)
+        heightConstraint.isActive = true
+        activeToolHeightConstraint = heightConstraint
+
+        let newPanelHeight = inputHeight + 1 + tabBarHeight + targetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        // Instant swap — panel is already expanded from the tool list
+        setFrame(newFrame, display: true)
+        positionMascotOverSpacer()
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
+    /// Pops back from a tool's drilled-in view to the tool list.
+    func popToolView() {
+        guard isInsideTool else { return }
+
+        // Remove the active tool view
+        if let activeToolView {
+            mainStack.removeArrangedSubview(activeToolView)
+            activeToolView.removeFromSuperview()
+            activeToolHeightConstraint = nil
+            self.activeToolView = nil
+        }
+
+        isInsideTool = false
+        activeTool = nil
+
+        // Re-show the tool list
+        showToolList(tools: PanelToolRegistry.shared.search(query: ""))
     }
 }

@@ -5,6 +5,7 @@ enum SessionTab: Int {
     case chats = 0
     case reminders = 1
     case routines = 2
+    case tools = 3
 }
 
 /// Displays grouped chat sessions in a scrollable list below the input field.

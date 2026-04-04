@@ -34,16 +34,9 @@ struct TamagotchaiApp: App {
 
             Divider()
 
-            if isLoggedIn {
-                Button("Claude Account…") {
-                    ButtonSound.shared.play()
-                    LoginWindowController.show(isLoggedIn: true) { isLoggedIn = $0 }
-                }
-            } else {
-                Button("Login to Claude…") {
-                    ButtonSound.shared.play()
-                    LoginWindowController.show(isLoggedIn: false) { isLoggedIn = $0 }
-                }
+            Button("AI Settings…") {
+                ButtonSound.shared.play()
+                LoginWindowController.show { isLoggedIn = $0 }
             }
 
             #if DEBUG
@@ -109,10 +102,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
         // Start the scheduler
         ScheduleStore.shared.start()
+
+        // Start clipboard monitoring for the Tools tab
+        ClipboardMonitor.shared.start()
     }
 
     func applicationWillTerminate(_: Notification) {
         logger.info("App terminating")
+        ClipboardMonitor.shared.stop()
         ScheduleStore.shared.stop()
         PromptPanelController.shared.unregister()
     }

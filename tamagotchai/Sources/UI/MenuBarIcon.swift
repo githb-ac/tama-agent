@@ -56,6 +56,37 @@ enum MenuBarIcon {
         return image
     }
 
+    /// Creates a squircle icon with an SF Symbol centered inside.
+    /// Matches the visual style of `sessionIcon` for consistent list row icons.
+    static func symbolIcon(name: String, size: CGFloat = 28) -> NSImage {
+        NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            // Squircle background — identical to sessionIcon
+            let bgPath = NSBezierPath(
+                roundedRect: rect,
+                xRadius: size * 0.24,
+                yRadius: size * 0.24
+            )
+            NSColor.labelColor.withAlphaComponent(0.08).setFill()
+            bgPath.fill()
+
+            // Draw SF Symbol centered
+            if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
+                let config = NSImage.SymbolConfiguration(pointSize: size * 0.4, weight: .medium)
+                let configured = symbol.withSymbolConfiguration(config) ?? symbol
+                let symbolSize = configured.size
+                let x = (size - symbolSize.width) / 2
+                let y = (size - symbolSize.height) / 2
+                configured.draw(
+                    in: NSRect(x: x, y: y, width: symbolSize.width, height: symbolSize.height),
+                    from: .zero,
+                    operation: .sourceOver,
+                    fraction: 0.5
+                )
+            }
+            return true
+        }
+    }
+
     // MARK: - Layout Constants
 
     private struct Layout {

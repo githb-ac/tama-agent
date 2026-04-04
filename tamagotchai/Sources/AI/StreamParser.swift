@@ -49,7 +49,8 @@ final class StreamParser {
             )
         return ClaudeResponse(
             content: contentBlocks,
-            stopReason: stopReason
+            stopReason: stopReason,
+            reasoningContent: nil
         )
     }
 

@@ -1,36 +1,45 @@
 import SwiftUI
 
 struct LoginView: View {
-    @State private var loginCode = ""
-    @State private var isLoggingIn = false
+    @State private var apiKeyInputs: [AIProvider: String] = [:]
     @State private var errorMessage: String?
+    @State private var selectedModelId: String
 
-    let isLoggedIn: Bool
     let onLoginStateChanged: (Bool) -> Void
+
+    init(onLoginStateChanged: @escaping (Bool) -> Void) {
+        self.onLoginStateChanged = onLoginStateChanged
+        _selectedModelId = State(initialValue: ProviderStore.shared.selectedModel.id)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(isLoggedIn ? "Claude Account" : "Login to Claude")
+            Text("AI Settings")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white.opacity(0.9))
                 .padding(.top, 10)
                 .padding(.bottom, 8)
 
-            if isLoggedIn {
-                loggedInContent
-            } else {
-                loggedOutContent
+            ScrollView {
+                VStack(spacing: 12) {
+                    modelSelector
+                    providerSections
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: 360)
+
+            if let errorMessage {
+                errorBanner(errorMessage)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4)
             }
 
             Divider().opacity(0.3)
                 .padding(.top, 8)
 
-            HStack(spacing: 8) {
-                if !isLoggedIn {
-                    GlassButton("Open Browser Login") {
-                        ClaudeOAuth.startLogin()
-                    }
-                }
+            HStack {
                 Spacer()
                 GlassButton("Done", isPrimary: true) {
                     LoginWindowController.dismiss()
@@ -39,114 +48,205 @@ struct LoginView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
         }
-        .frame(width: 340)
+        .frame(width: 380)
     }
 
-    private var loggedInContent: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Connected")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                Text("You are logged in to Claude.")
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.45))
-            }
+    // MARK: - Model Selector
 
-            Spacer()
+    private var modelSelector: some View {
+        VStack(spacing: 6) {
+            Text("Active Model")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.45))
 
-            GlassButton("Logout") {
-                ClaudeService.shared.logout()
-                onLoginStateChanged(false)
-                LoginWindowController.dismiss()
+            let available = ModelRegistry.availableModels()
+
+            if available.isEmpty {
+                Text("Add an API key below to get started")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.35))
+                    .padding(.vertical, 4)
+            } else {
+                modelDropdown(models: available)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
     }
 
-    private var loggedOutContent: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Not Connected")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
-                    Text("Login to use Claude AI features.")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.45))
+    private func modelDropdown(models: [ModelInfo]) -> some View {
+        Menu {
+            ForEach(models) { model in
+                Button {
+                    selectedModelId = model.id
+                    ProviderStore.shared.setSelectedModel(model)
+                } label: {
+                    HStack {
+                        Text(model.name)
+                        Text("(\(model.provider.displayName))")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                if let current = models.first(where: { $0.id == selectedModelId }) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(current.name)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                        Text(current.provider.displayName)
+                            .font(.system(size: 9))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                } else {
+                    Text("Select a model")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.5))
                 }
                 Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9))
+                    .foregroundColor(.white.opacity(0.4))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.08))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+        }
+        .menuStyle(.borderlessButton)
+    }
 
-            Divider().opacity(0.3).padding(.horizontal, 14)
+    // MARK: - Provider Sections
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Paste Login Code")
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.45))
-
-                HStack(spacing: 8) {
-                    TextField("code#state", text: $loginCode)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 12))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.08))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                        )
-                        .disabled(isLoggingIn)
-
-                    GlassButton(isLoggingIn ? "Logging in…" : "Login", isPrimary: true) {
-                        submitCode()
-                    }
-                    .disabled(loginCode.isEmpty || isLoggingIn)
-                    .opacity(loginCode.isEmpty || isLoggingIn ? 0.5 : 1)
-                }
-
-                if let errorMessage {
-                    HStack(spacing: 6) {
-                        Text(errorMessage)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                            .lineLimit(2)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.orange.opacity(0.25))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.orange.opacity(0.45), lineWidth: 1)
-                    )
-                    .cornerRadius(8)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 4)
+    private var providerSections: some View {
+        ForEach(AIProvider.allCases) { provider in
+            providerRow(provider)
         }
     }
 
-    private func submitCode() {
-        isLoggingIn = true
-        errorMessage = nil
-
-        Task {
-            do {
-                let credentials = try await ClaudeOAuth.completeLogin(rawCode: loginCode)
-                ClaudeService.shared.setCredentials(credentials)
-                onLoginStateChanged(true)
-                LoginWindowController.dismiss()
-            } catch {
-                let appError = AppError.loginFailed(error.localizedDescription)
-                errorMessage = appError.message
+    private func providerRow(_ provider: AIProvider) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(provider.displayName)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                    Text(provider.description)
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                Spacer()
+                if ProviderStore.shared.hasCredentials(for: provider) {
+                    connectedBadge
+                }
             }
-            isLoggingIn = false
+
+            if ProviderStore.shared.hasCredentials(for: provider) {
+                connectedRow(provider)
+            } else {
+                addKeyRow(provider)
+            }
         }
+        .padding(10)
+        .background(Color.white.opacity(0.04))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private var connectedBadge: some View {
+        Text("Connected")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundColor(.green.opacity(0.9))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.green.opacity(0.15))
+            .cornerRadius(4)
+    }
+
+    private func connectedRow(_ provider: AIProvider) -> some View {
+        HStack {
+            Text("API key configured")
+                .font(.system(size: 10))
+                .foregroundColor(.white.opacity(0.4))
+            Spacer()
+            GlassButton("Remove") {
+                ProviderStore.shared.removeCredential(for: provider)
+                onLoginStateChanged(ProviderStore.shared.hasAnyCredentials)
+                selectedModelId = ProviderStore.shared.selectedModel.id
+            }
+        }
+    }
+
+    private func addKeyRow(_ provider: AIProvider) -> some View {
+        HStack(spacing: 8) {
+            TextField("Paste API key", text: binding(for: provider))
+                .textFieldStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.08))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+
+            let key = apiKeyInputs[provider] ?? ""
+            GlassButton("Add", isPrimary: true) {
+                addApiKey(key, for: provider)
+            }
+            .disabled(key.isEmpty)
+            .opacity(key.isEmpty ? 0.5 : 1)
+        }
+    }
+
+    // MARK: - Error Banner
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 6) {
+            Text(message)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.9))
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.orange.opacity(0.25))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.orange.opacity(0.45), lineWidth: 1)
+        )
+        .cornerRadius(8)
+    }
+
+    // MARK: - Actions
+
+    private func binding(for provider: AIProvider) -> Binding<String> {
+        Binding(
+            get: { apiKeyInputs[provider] ?? "" },
+            set: { apiKeyInputs[provider] = $0 }
+        )
+    }
+
+    private func addApiKey(_ key: String, for provider: AIProvider) {
+        errorMessage = nil
+        ProviderStore.shared.setCredential(.apiKey(key), for: provider)
+        apiKeyInputs[provider] = nil
+
+        let available = ModelRegistry.availableModels()
+        if !available.contains(where: { $0.id == selectedModelId }) {
+            let defaultModel = ModelRegistry.defaultModel(for: provider)
+            selectedModelId = defaultModel.id
+            ProviderStore.shared.setSelectedModel(defaultModel)
+        }
+
+        onLoginStateChanged(true)
     }
 }

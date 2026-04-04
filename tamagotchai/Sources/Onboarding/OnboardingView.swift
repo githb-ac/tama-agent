@@ -347,12 +347,12 @@ struct OnboardingView: View {
 
     private var loginStep: some View {
         VStack(spacing: 0) {
-            Text("Connect to Claude")
+            Text("Connect to Kimi")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white.opacity(0.95))
                 .padding(.bottom, 8)
 
-            Text("Sign in with your Anthropic account to enable AI features.")
+            Text("Add your Moonshot API key to enable AI features.")
                 .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.45))
                 .multilineTextAlignment(.center)
@@ -364,7 +364,7 @@ struct OnboardingView: View {
                         Text("Connected")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white.opacity(0.9))
-                        Text("You are logged in to Claude.")
+                        Text("API key configured.")
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.45))
                     }
@@ -382,57 +382,44 @@ struct OnboardingView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
             } else {
-                VStack(spacing: 12) {
-                    GlassButton("Open Browser Login", isPrimary: true) {
-                        ClaudeOAuth.startLogin()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        TextField("Paste API key", text: $loginCode)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            )
+
+                        GlassButton("Add", isPrimary: true) {
+                            submitApiKey()
+                        }
+                        .disabled(loginCode.isEmpty)
+                        .opacity(loginCode.isEmpty ? 0.5 : 1)
                     }
 
-                    Divider().opacity(0.3).padding(.horizontal, 24)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Paste Login Code")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.45))
-
-                        HStack(spacing: 8) {
-                            TextField("code#state", text: $loginCode)
-                                .textFieldStyle(.plain)
-                                .font(.system(size: 12))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.white.opacity(0.08))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                )
-                                .disabled(isLoggingIn)
-
-                            GlassButton(isLoggingIn ? "Logging in..." : "Login", isPrimary: true) {
-                                submitLoginCode()
-                            }
-                            .disabled(loginCode.isEmpty || isLoggingIn)
-                            .opacity(loginCode.isEmpty || isLoggingIn ? 0.5 : 1)
-                        }
-
-                        if let loginError {
-                            Text(loginError)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
-                                .lineLimit(2)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.orange.opacity(0.25))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.orange.opacity(0.45), lineWidth: 1)
-                                )
-                                .cornerRadius(8)
-                        }
+                    if let loginError {
+                        Text(loginError)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(2)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.orange.opacity(0.25))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.orange.opacity(0.45), lineWidth: 1)
+                            )
+                            .cornerRadius(8)
                     }
-                    .padding(.horizontal, 20)
                 }
+                .padding(.horizontal, 20)
             }
         }
         .padding(.horizontal, 14)
@@ -441,23 +428,15 @@ struct OnboardingView: View {
         }
     }
 
-    private func submitLoginCode() {
-        isLoggingIn = true
-        loginError = nil
-
-        Task {
-            do {
-                let credentials = try await ClaudeOAuth.completeLogin(rawCode: loginCode)
-                ClaudeService.shared.setCredentials(credentials)
-                isLoggedIn = true
-                logger.info("Onboarding login succeeded")
-            } catch {
-                let appError = AppError.loginFailed(error.localizedDescription)
-                loginError = appError.message
-                logger.error("Onboarding login failed: \(error.localizedDescription)")
-            }
-            isLoggingIn = false
-        }
+    private func submitApiKey() {
+        let key = loginCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        ProviderStore.shared.setCredential(.apiKey(key), for: .moonshot)
+        let defaultModel = ModelRegistry.defaultModel(for: .moonshot)
+        ProviderStore.shared.setSelectedModel(defaultModel)
+        loginCode = ""
+        isLoggedIn = true
+        logger.info("Onboarding API key added")
     }
 
     // MARK: - Voice

@@ -27,12 +27,12 @@ final class ErrorTextBlock: NSTextBlock {
         let rect = frameRect.insetBy(dx: 1, dy: 1)
         let path = NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12)
 
-        // Tinted fill
-        tint.withAlphaComponent(0.25).setFill()
+        // Tinted fill — higher opacity for visibility on dark backgrounds
+        tint.withAlphaComponent(0.55).setFill()
         path.fill()
 
-        // Subtle border
-        tint.withAlphaComponent(0.45).setStroke()
+        // Border
+        tint.withAlphaComponent(0.7).setStroke()
         path.lineWidth = 1
         path.stroke()
     }

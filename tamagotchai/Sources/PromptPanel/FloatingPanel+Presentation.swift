@@ -11,6 +11,9 @@ private let panelLogger = Logger(
 extension FloatingPanel {
     /// Restores a full conversation from saved messages into the response area.
     func restoreConversation(messages: [ChatMessage]) {
+        // Re-enable adaptive color mapping (may have been disabled by showError)
+        responseTextView.usesAdaptiveColorMappingForDarkAppearance = true
+
         // Reset streaming/conversation state
         rawMarkdown = ""
         pendingMarkdown = ""
@@ -71,9 +74,11 @@ extension FloatingPanel {
         // Set the text storage
         responseTextView.textStorage?.setAttributedString(conversationAttributed)
 
-        // Hide session list, show response area (keep tab bar visible for navigation)
+        // Hide session list and tool list, show response area (keep tab bar visible for navigation)
         sessionListView.isHidden = true
         sessionListHeightConstraint?.constant = 0
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
         dividerContainer.isHidden = false
         responseScrollView.isHidden = false
         dividerContainer.alphaValue = 1
@@ -114,6 +119,15 @@ extension FloatingPanel {
         scrollToBottomInstantly()
         makeFirstResponder(inputField)
         mascot.setState(.idle)
+
+        // Large conversations may appear blank because the scroll view's clip view
+        // hasn't fully laid out at the scroll offset yet. Deferring a second
+        // scroll + display to the next run loop tick ensures the geometry is final.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            scrollToBottomInstantly()
+            responseScrollView.displayIfNeeded()
+        }
     }
 }
 
@@ -261,6 +275,24 @@ extension FloatingPanel {
         sessionListView.isHidden = true
         sessionListView.alphaValue = 1
         sessionListHeightConstraint?.constant = 0
+
+        // Reset tab bar to Chats
+        tabBar.selectTab(0, animated: false)
+        suppressHideSessionList = false
+
+        // Reset tools state
+        isToolsMode = false
+        isInsideTool = false
+        activeTool = nil
+        if let activeToolView {
+            mainStack.removeArrangedSubview(activeToolView)
+            activeToolView.removeFromSuperview()
+            activeToolHeightConstraint = nil
+            self.activeToolView = nil
+        }
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
+
         mascot.setState(.idle)
 
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
