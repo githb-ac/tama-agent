@@ -7,6 +7,8 @@ extension FloatingPanel {
 
     /// Shows the session history list with grouped sessions, or an empty state message.
     func showSessionList(_ groups: [(label: String, sessions: [ChatSession])], emptyMessage: String? = nil) {
+        isInsideSession = false
+
         // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
         let alreadyVisible = !sessionListView.isHidden || !tabBarContainer.isHidden
 

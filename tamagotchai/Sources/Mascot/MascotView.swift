@@ -1,6 +1,12 @@
 import AppKit
+import os
 import RiveRuntime
 import SwiftUI
+
+private let mascotLogger = Logger(
+    subsystem: "com.unstablemind.tamagotchai",
+    category: "mascot"
+)
 
 /// Manages a Rive-powered mascot that reacts to app state.
 /// Uses the "Avatar 1" artboard from avatar_pack.riv with state machine "avatar".
@@ -66,6 +72,12 @@ final class MascotView {
     func setState(_ state: MascotState) {
         guard state != currentState else { return }
         currentState = state
+        applyState(state)
+    }
+
+    /// Stops running timers and applies the animation for the given state.
+    /// Called by both `setState` (on transitions) and `resume` (re-applying the current state).
+    private func applyState(_ state: MascotState) {
         stopAllTimers()
 
         switch state {
@@ -208,6 +220,22 @@ final class MascotView {
             guard let self, currentState == expectedState else { return }
             action(self)
         }
+    }
+
+    // MARK: - Pause / Resume
+
+    /// Stops the Rive state machine and all timers to save GPU/CPU while the panel is hidden.
+    func pause() {
+        riveViewModel.pause()
+        stopAllTimers()
+        mascotLogger.info("Mascot paused")
+    }
+
+    /// Restarts the Rive state machine and re-applies the current animation state.
+    func resume() {
+        riveViewModel.play()
+        applyState(currentState)
+        mascotLogger.info("Mascot resumed")
     }
 
     // MARK: - Cleanup

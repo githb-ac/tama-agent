@@ -271,6 +271,8 @@ extension FloatingPanel {
     /// Returns the full assistant response text for conversation history tracking.
     @discardableResult
     func streamResponse(_ stream: AsyncThrowingStream<String, Error>, userText: String = "") async throws -> String {
+        isInsideSession = true
+
         // Re-enable adaptive color mapping (may have been disabled by showError)
         responseTextView.usesAdaptiveColorMappingForDarkAppearance = true
 

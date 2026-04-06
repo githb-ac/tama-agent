@@ -18,6 +18,7 @@ final class PromptPanelController {
     private var isPanelDismissed = false
     private var activeAgentTask: Task<Void, Never>?
     private var activeStreamTask: Task<Void, Never>?
+    private var ttsUnloadTask: Task<Void, Never>?
     private lazy var agentLoop = AgentLoop(
         workingDirectory: Self.ensureWorkspace()
     )
@@ -85,6 +86,10 @@ final class PromptPanelController {
 
     private func showPanel() {
         logger.info("Showing panel")
+
+        // Cancel any pending TTS unload — user reopened the panel
+        ttsUnloadTask?.cancel()
+        ttsUnloadTask = nil
 
         // Hard reset: kill any in-flight work from the previous session.
         // This guarantees a clean slate even if the previous agent hung or errored.
@@ -174,6 +179,14 @@ final class PromptPanelController {
             let filtered = PanelToolRegistry.shared.search(query: query)
             self?.panel?.filterToolList(tools: filtered)
         }
+        newPanel.onBackToList = { [weak self] in
+            guard let self else { return }
+            cancelAllActiveTasks()
+            currentSession = nil
+            conversationHistory = []
+            handleTabChanged(currentTab)
+            startVoiceCapture()
+        }
         newPanel.onInterrupt = { [weak self] in
             guard let self else { return false }
             return interruptAgent()
@@ -183,6 +196,15 @@ final class PromptPanelController {
             isPanelDismissed = true
             cancelAllActiveTasks()
             isVoiceMode = false
+
+            // Schedule TTS engine unload after delay to free memory
+            ttsUnloadTask?.cancel()
+            ttsUnloadTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(10))
+                guard !Task.isCancelled else { return }
+                KokoroManager.shared.unload()
+                self?.logger.info("TTS engine unloaded after idle timeout")
+            }
         }
         panel = newPanel
     }
@@ -323,6 +345,10 @@ final class PromptPanelController {
 
     /// Starts voice capture with waveform. User can speak or type — typing cancels voice.
     private func startVoiceCapture() {
+        guard KokoroManager.shared.voiceEnabled else {
+            logger.debug("Voice capture skipped — voice disabled")
+            return
+        }
         guard !isDismissedByAgent, !isPanelDismissed, let panel, panel.isVisible else { return }
         SpeechService.shared.stop()
         isVoiceMode = true

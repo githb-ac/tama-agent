@@ -13,11 +13,33 @@ extension NSAttributedString.Key {
 enum MarkdownRenderer {
     // MARK: - Syntax Highlighting
 
-    private static let highlightr: Highlightr? = {
-        let h = Highlightr()
-        h?.setTheme(to: "atom-one-dark")
-        return h
-    }()
+    /// Lazily-created Highlightr instance. Released after `highlightrIdleTimeout` of inactivity.
+    private static var _highlightr: Highlightr?
+    private static var highlightrReleaseTask: Task<Void, Never>?
+    private static let highlightrIdleTimeout: Duration = .seconds(30)
+
+    /// Returns the shared Highlightr, creating it on first access.
+    /// Schedules automatic release after 30 seconds of inactivity.
+    private static var highlightr: Highlightr? {
+        highlightrReleaseTask?.cancel()
+        highlightrReleaseTask = nil
+
+        if _highlightr == nil {
+            let h = Highlightr()
+            h?.setTheme(to: "atom-one-dark")
+            _highlightr = h
+        }
+
+        // Schedule release after idle timeout
+        highlightrReleaseTask = Task { @MainActor in
+            try? await Task.sleep(for: highlightrIdleTimeout)
+            guard !Task.isCancelled else { return }
+            _highlightr = nil
+            highlightrReleaseTask = nil
+        }
+
+        return _highlightr
+    }
 
     // MARK: - Fonts
 

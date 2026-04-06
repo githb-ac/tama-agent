@@ -209,6 +209,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Whether we're currently viewing a specific tool's drilled-in UI.
     var isInsideTool = false
 
+    /// Whether we're currently viewing a session's conversation (chat/reminder/routine).
+    var isInsideSession = false
+
     /// The currently active tool (when drilled in).
     var activeTool: PanelTool?
 
@@ -240,6 +243,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Called when the user changes the session list tab.
     var onTabChanged: ((SessionTab) -> Void)?
+
+    /// Called when ESC is pressed inside a session to navigate back to the list.
+    var onBackToList: (() -> Void)?
 
     /// Called when the user selects a tool from the tool list.
     var onToolSelected: ((PanelTool) -> Void)?
@@ -513,6 +519,11 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             }
             // Try interrupt first — if something was interrupted, don't dismiss
             if onInterrupt?() == true {
+                return
+            }
+            // If inside a session (chat/reminder/routine), go back to the list
+            if isInsideSession {
+                onBackToList?()
                 return
             }
             dismiss()

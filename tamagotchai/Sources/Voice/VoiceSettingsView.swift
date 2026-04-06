@@ -15,17 +15,53 @@ struct VoiceSettingsView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 8)
 
+            voiceToggleSection
+
+            Divider().opacity(0.3).padding(.horizontal, 14)
+
             modelSection
+                .opacity(manager.voiceEnabled ? 1 : 0.4)
+                .allowsHitTesting(manager.voiceEnabled)
 
             Divider().opacity(0.3).padding(.horizontal, 14)
 
             voiceListSection
+                .opacity(manager.voiceEnabled ? 1 : 0.4)
+                .allowsHitTesting(manager.voiceEnabled)
 
             Divider().opacity(0.3).padding(.horizontal, 14)
 
             footerSection
         }
         .frame(width: 380)
+    }
+
+    // MARK: - Voice Toggle
+
+    private var voiceToggleSection: some View {
+        HStack(spacing: 8) {
+            Image(systemName: manager.voiceEnabled ? "mic.fill" : "mic.slash.fill")
+                .foregroundColor(manager.voiceEnabled ? .green.opacity(0.9) : .white.opacity(0.4))
+                .font(.system(size: 14))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Voice Mode")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                Text(manager.voiceEnabled ? "Listening and speaking enabled" : "Type-only mode")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.45))
+            }
+
+            Spacer()
+
+            Toggle("", isOn: $manager.voiceEnabled)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Model Section

@@ -321,8 +321,8 @@ final class SpeechService {
         logger.info("Enqueuing: \(text.prefix(60))…")
 
         let manager = KokoroManager.shared
-        guard manager.isReady else {
-            logger.warning("Kokoro not ready, skipping: \(text.prefix(40))…")
+        guard manager.isDownloaded else {
+            logger.warning("Kokoro not downloaded, skipping: \(text.prefix(40))…")
             utteranceDidFinish()
             return
         }

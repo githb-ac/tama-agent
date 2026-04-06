@@ -23,6 +23,14 @@ final class KokoroManager: ObservableObject {
     @Published var voiceDownloading: [String: Bool] = [:]
     @Published var voiceDownloadProgress: [String: Double] = [:]
 
+    @Published var voiceEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(voiceEnabled, forKey: "kokoroVoiceEnabled")
+            // swiftformat:disable:next redundantSelf
+            logger.info("Voice enabled changed to: \(self.voiceEnabled)")
+        }
+    }
+
     @Published var selectedVoice: String {
         didSet {
             UserDefaults.standard.set(selectedVoice, forKey: "kokoroSelectedVoice")
@@ -67,14 +75,18 @@ final class KokoroManager: ObservableObject {
     // MARK: - Init
 
     private init() {
+        voiceEnabled = UserDefaults.standard.object(forKey: "kokoroVoiceEnabled") as? Bool ?? true
         selectedVoice = UserDefaults.standard.string(forKey: "kokoroSelectedVoice") ?? "af_heart"
         // swiftformat:disable:next redundantSelf
-        logger.info("KokoroManager initializing, selected voice: \(self.selectedVoice)")
+        logger.info("KokoroManager initializing, voice enabled: \(self.voiceEnabled), voice: \(self.selectedVoice)")
         checkExistingFiles()
     }
 
-    /// Whether Kokoro is ready to generate speech (model loaded + voice selected + downloaded).
+    /// Whether Kokoro is ready to generate speech (model loaded + voice selected + loaded).
     var isReady: Bool { ttsEngine != nil && loadedVoices[selectedVoice] != nil }
+
+    /// Whether model and at least the selected voice are downloaded on disk (no memory load).
+    var isDownloaded: Bool { modelDownloaded && downloadedVoices.contains(selectedVoice) }
 
     // MARK: - File Checks
 
@@ -95,18 +107,35 @@ final class KokoroManager: ObservableObject {
             }
         }
 
-        if modelDownloaded {
-            loadEngine()
-        }
-
-        for voiceId in downloadedVoices {
-            loadVoiceEmbedding(voiceId)
-        }
-
         let ready = isReady
         let voiceCount = downloadedVoices.count
         let hasModel = modelDownloaded
         logger.info("Startup complete — model: \(hasModel), voices: \(voiceCount), ready: \(ready)")
+    }
+
+    // MARK: - Lazy Loading
+
+    /// Loads the TTS engine and all downloaded voice embeddings into memory on demand.
+    /// No-op if everything is already loaded.
+    func ensureLoaded() {
+        // swiftformat:disable:next redundantSelf
+        logger.info("ensureLoaded called — engine loaded: \(self.ttsEngine != nil)")
+        loadEngine()
+        for voiceId in downloadedVoices {
+            loadVoiceEmbedding(voiceId)
+        }
+    }
+
+    /// Frees the TTS engine, voice embeddings, and GPU memory.
+    func unload() {
+        let hadEngine = ttsEngine != nil
+        let voiceCount = loadedVoices.count
+        ttsEngine = nil
+        loadedVoices.removeAll()
+        // MLX caches Metal GPU buffers aggressively — must flush explicitly
+        MLX.GPU.set(cacheLimit: 0)
+        MLX.GPU.clearCache()
+        logger.info("Unloaded TTS engine (was loaded: \(hadEngine)), \(voiceCount) voice(s), GPU cache cleared")
     }
 
     // MARK: - Model Download
@@ -211,6 +240,10 @@ final class KokoroManager: ObservableObject {
     }
 
     private func loadVoiceEmbedding(_ voiceId: String) {
+        guard loadedVoices[voiceId] == nil else {
+            logger.debug("loadVoiceEmbedding skipped — \(voiceId) already loaded")
+            return
+        }
         let file = voicesDir.appendingPathComponent("\(voiceId).safetensors")
         guard FileManager.default.fileExists(atPath: file.path) else {
             logger.warning("Voice file missing: \(file.path)")
@@ -243,7 +276,12 @@ final class KokoroManager: ObservableObject {
     }
 
     /// Captures engine + voice state for off-main-thread generation. Returns nil if not ready.
+    /// Automatically calls `ensureLoaded()` if the engine or voice isn't loaded yet.
     func captureGenerationContext() -> GenerationContext? {
+        if ttsEngine == nil || loadedVoices[selectedVoice] == nil {
+            logger.info("captureGenerationContext triggering ensureLoaded()")
+            ensureLoaded()
+        }
         guard let engine = ttsEngine, let voice = loadedVoices[selectedVoice] else { return nil }
         let language: Language = selectedVoice.hasPrefix("b") ? .enGB : .enUS
         return GenerationContext(engine: engine, voice: voice, voiceId: selectedVoice, language: language)

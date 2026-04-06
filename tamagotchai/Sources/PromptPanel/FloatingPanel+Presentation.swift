@@ -11,6 +11,8 @@ private let panelLogger = Logger(
 extension FloatingPanel {
     /// Restores a full conversation from saved messages into the response area.
     func restoreConversation(messages: [ChatMessage]) {
+        isInsideSession = true
+
         // Re-enable adaptive color mapping (may have been disabled by showError)
         responseTextView.usesAdaptiveColorMappingForDarkAppearance = true
 
@@ -294,6 +296,7 @@ extension FloatingPanel {
         toolListHeightConstraint?.constant = 0
 
         mascot.setState(.idle)
+        mascot.resume()
 
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = screen.visibleFrame
@@ -342,6 +345,7 @@ extension FloatingPanel {
         panelLogger.info("Panel dismissing")
         isDismissing = true
         endVoiceSession()
+        mascot.pause()
         onDismiss?()
 
         NSAnimationContext.runAnimationGroup { context in
