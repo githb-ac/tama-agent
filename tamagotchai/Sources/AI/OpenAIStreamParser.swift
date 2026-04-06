@@ -70,9 +70,18 @@ final class OpenAIStreamParser {
             return
         }
 
-        guard let data = payload.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return }
+        guard let data = payload.data(using: .utf8) else { return }
+        let obj: [String: Any]
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                logger.warning("OpenAI stream: non-dictionary JSON: \(payload.prefix(200))")
+                return
+            }
+            obj = parsed
+        } catch {
+            logger.warning("OpenAI stream: JSON parse failed: \(error.localizedDescription) — \(payload.prefix(200))")
+            return
+        }
 
         // Check for error
         if let error = obj["error"] as? [String: Any],

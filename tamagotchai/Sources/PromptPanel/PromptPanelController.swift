@@ -406,6 +406,7 @@ final class PromptPanelController {
             return
         }
 
+        let historyCountBeforeSubmit = conversationHistory.count
         conversationHistory.append(["role": "user", "content": userText])
 
         let (stream, continuation) = AsyncThrowingStream.makeStream(
@@ -502,7 +503,8 @@ final class PromptPanelController {
                 stream: stream,
                 userText: userText,
                 speakInline: speakInline,
-                panel: panel
+                panel: panel,
+                historyCountBeforeSubmit: historyCountBeforeSubmit
             )
             activeAgentTask = nil
             activeStreamTask = nil
@@ -515,7 +517,8 @@ final class PromptPanelController {
         stream: AsyncThrowingStream<String, Error>,
         userText: String,
         speakInline: Bool,
-        panel: FloatingPanel
+        panel: FloatingPanel,
+        historyCountBeforeSubmit: Int
     ) async {
         if speakInline {
             SpeechService.shared.beginStreaming()
@@ -549,7 +552,11 @@ final class PromptPanelController {
                 return
             }
             logger.error("Stream response error: \(error.localizedDescription)")
-            conversationHistory.removeLast()
+            // Restore history to the state before this submit to avoid
+            // corrupting it (the agent may have already updated it).
+            if conversationHistory.count > historyCountBeforeSubmit {
+                conversationHistory.removeSubrange(historyCountBeforeSubmit...)
+            }
             panel.hideToolIndicator()
             MenuBarMood.shared.setActivity(.error)
             let appError = AppError.from(error)

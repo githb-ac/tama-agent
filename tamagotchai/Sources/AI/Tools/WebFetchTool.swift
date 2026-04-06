@@ -156,13 +156,48 @@ final class WebFetchTool: AgentTool {
             throw WebFetchError.blockedHost(host)
         }
 
-        if isPrivateIPv4(host) || isPrivateIPv6(host) {
+        if Self.isPrivateIPv4(host) || Self.isPrivateIPv6(host) {
+            throw WebFetchError.blockedHost(host)
+        }
+
+        // Resolve DNS to catch hostnames that point to private IPs (DNS rebinding defense).
+        if Self.resolvesToPrivateIP(host) {
             throw WebFetchError.blockedHost(host)
         }
     }
 
+    /// Resolves a hostname via DNS and returns true if ANY resolved IP is private/reserved.
+    private static func resolvesToPrivateIP(_ hostname: String) -> Bool {
+        var hints = addrinfo()
+        hints.ai_family = AF_UNSPEC
+        hints.ai_socktype = SOCK_STREAM
+
+        var result: UnsafeMutablePointer<addrinfo>?
+        let status = getaddrinfo(hostname, nil, &hints, &result)
+        guard status == 0, let addrList = result else { return false }
+        defer { freeaddrinfo(addrList) }
+
+        var current: UnsafeMutablePointer<addrinfo>? = addrList
+        while let addr = current {
+            if addr.pointee.ai_family == AF_INET {
+                var sa = addr.pointee.ai_addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
+                let ipBytes = withUnsafeBytes(of: &sa.sin_addr) { Array($0) }
+                let ipString = ipBytes.map { String($0) }.joined(separator: ".")
+                if isPrivateIPv4(ipString) { return true }
+            } else if addr.pointee.ai_family == AF_INET6 {
+                var sa = addr.pointee.ai_addr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
+                var buf = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                inet_ntop(AF_INET6, &sa.sin6_addr, &buf, socklen_t(INET6_ADDRSTRLEN))
+                let ipString = String(cString: buf)
+                if isPrivateIPv6(ipString) { return true }
+            }
+            current = addr.pointee.ai_next
+        }
+        return false
+    }
+
     /// Returns true if the given string is an IPv4 address in a private/reserved range.
-    private func isPrivateIPv4(_ host: String) -> Bool {
+    private static func isPrivateIPv4(_ host: String) -> Bool {
         let parts = host.split(separator: ".").compactMap { UInt8($0) }
         guard parts.count == 4 else { return false }
 
@@ -191,6 +226,11 @@ final class WebFetchTool: AgentTool {
             return true
         }
 
+        // 100.64.0.0/10 — Carrier-Grade NAT (CGNAT) / shared address space
+        if parts[0] == 100, (64 ... 127).contains(parts[1]) {
+            return true
+        }
+
         // 0.0.0.0/8
         if parts[0] == 0 {
             return true
@@ -200,7 +240,7 @@ final class WebFetchTool: AgentTool {
     }
 
     /// Returns true if the given string is an IPv6 address in a private/reserved range.
-    private func isPrivateIPv6(_ host: String) -> Bool {
+    private static func isPrivateIPv6(_ host: String) -> Bool {
         // Strip brackets if present (e.g. from URL host)
         let cleaned = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
 
@@ -236,7 +276,7 @@ final class WebFetchTool: AgentTool {
     }
 
     /// Minimal IPv6 expansion — returns the full lowercased hex string (no colons) or empty on parse failure.
-    private func expandIPv6(_ addr: String) -> String {
+    private static func expandIPv6(_ addr: String) -> String {
         var parts = addr.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
 
         // Handle :: expansion
@@ -278,10 +318,10 @@ final class WebFetchTool: AgentTool {
         let blockedHosts: Set<String> = ["localhost", "0.0.0.0"]
         if blockedHosts.contains(host) { return false }
 
-        let checker = WebFetchTool()
-        if checker.isPrivateIPv4(host) || checker.isPrivateIPv6(host) {
-            return false
-        }
+        if isPrivateIPv4(host) || isPrivateIPv6(host) { return false }
+
+        // DNS resolution check for rebinding defense.
+        if resolvesToPrivateIP(host) { return false }
 
         return true
     }

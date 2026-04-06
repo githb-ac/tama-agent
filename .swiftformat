@@ -8,7 +8,7 @@
 --wrapcollections before-first
 --maxwidth 120
 --semicolons never
---commas always
+--trailingcommas always
 --stripunusedargs closure-only
 --header strip
 --ifdef no-indent

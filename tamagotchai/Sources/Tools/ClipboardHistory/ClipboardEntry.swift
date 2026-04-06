@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 
 /// A single clipboard history entry.
 struct ClipboardEntry: Codable, Identifiable {

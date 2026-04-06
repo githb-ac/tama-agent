@@ -68,10 +68,19 @@ final class CodexStreamParser {
         let payload = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
         if payload.isEmpty || payload == "[DONE]" { return }
 
-        guard let data = payload.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let type = obj["type"] as? String
-        else { return }
+        guard let data = payload.data(using: .utf8) else { return }
+        let obj: [String: Any]
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                logger.warning("Codex stream: non-dictionary JSON: \(payload.prefix(200))")
+                return
+            }
+            obj = parsed
+        } catch {
+            logger.warning("Codex stream: JSON parse failed: \(error.localizedDescription) — \(payload.prefix(200))")
+            return
+        }
+        guard let type = obj["type"] as? String else { return }
 
         try processEvent(type: type, obj: obj)
     }

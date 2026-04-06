@@ -117,15 +117,40 @@ final class BashTool: AgentTool {
     }
 
     /// Creates and starts a `Process` for the given shell command.
-    /// Launches in a new process group so the entire tree can be killed on timeout.
+    /// After launch, moves the child into its own process group via `setpgid`
+    /// so the entire tree can be killed on timeout with `kill(-pid, ...)`.
     private func makeProcess(command: String) throws -> (Process, Pipe) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = ["-c", command]
         process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-        process.environment = ProcessInfo.processInfo.environment.merging(
-            ["TERM": "dumb"]
-        ) { _, new in new }
+
+        // Inherit the parent environment but strip well-known secret variables
+        // to reduce exposure if the AI is prompt-injected.
+        let sensitiveKeys: Set<String> = [
+            "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+            "GITHUB_TOKEN", "GH_TOKEN", "GITLAB_TOKEN",
+            "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "CLAUDE_API_KEY",
+            "DATABASE_URL", "DATABASE_PASSWORD",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "AZURE_CLIENT_SECRET",
+            "SLACK_TOKEN", "SLACK_BOT_TOKEN",
+            "STRIPE_SECRET_KEY",
+            "SENDGRID_API_KEY",
+            "TWILIO_AUTH_TOKEN",
+            "NPM_TOKEN",
+            "DOCKER_PASSWORD",
+            "HEROKU_API_KEY",
+            "DIGITALOCEAN_ACCESS_TOKEN",
+        ]
+        var env = ProcessInfo.processInfo.environment
+        for key in env.keys
+            where sensitiveKeys.contains(key) || key.hasSuffix("_SECRET") || key.hasSuffix("_PASSWORD")
+        {
+            env.removeValue(forKey: key)
+        }
+        env["TERM"] = "dumb"
+        process.environment = env
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -137,12 +162,15 @@ final class BashTool: AgentTool {
             logger.error("Process launch failed: \(error.localizedDescription, privacy: .public)")
             throw BashToolError.launchFailed(error.localizedDescription)
         }
-        return (process, pipe)
-    }
 
-    /// Shell-escape a string for embedding in a bash -c argument.
-    private func shellEscape(_ str: String) -> String {
-        "'" + str.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+        // Create a new process group for the child so we can kill the entire tree on timeout.
+        let pid = process.processIdentifier
+        let pgResult = setpgid(pid, pid)
+        if pgResult != 0 {
+            logger.debug("setpgid failed (errno \(errno)) — child may have already exited")
+        }
+
+        return (process, pipe)
     }
 
     /// Waits for the process to exit, terminating it if the timeout is exceeded.
@@ -159,13 +187,20 @@ final class BashTool: AgentTool {
             }
 
             if group.wait(timeout: .now() + seconds) == .timedOut {
-                // Kill the process group so child processes don't hold the pipe open.
                 let pid = process.processIdentifier
-                kill(-pid, SIGTERM)
+                // Kill the process group (negative PID) so child processes are also signaled.
+                if kill(-pid, SIGTERM) != 0 {
+                    logger.warning(
+                        "kill(-\(pid), SIGTERM) failed (errno \(errno)) — falling back to process.terminate()"
+                    )
+                    process.terminate()
+                }
 
                 // Allow graceful shutdown, then force kill.
                 if group.wait(timeout: .now() + 2) == .timedOut {
-                    kill(-pid, SIGKILL)
+                    if kill(-pid, SIGKILL) != 0 {
+                        logger.warning("kill(-\(pid), SIGKILL) failed (errno \(errno))")
+                    }
                     process.terminate()
                 }
 

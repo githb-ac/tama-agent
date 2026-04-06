@@ -51,10 +51,6 @@ final class ClipboardStore {
         save()
     }
 
-    func allEntries() -> [ClipboardEntry] {
-        entries
-    }
-
     func search(query: String) -> [ClipboardEntry] {
         guard !query.isEmpty else { return entries }
         let lowered = query.lowercased()
@@ -65,11 +61,6 @@ final class ClipboardStore {
 
     func delete(_ entry: ClipboardEntry) {
         entries.removeAll { $0.id == entry.id }
-        save()
-    }
-
-    func clear() {
-        entries.removeAll()
         save()
     }
 

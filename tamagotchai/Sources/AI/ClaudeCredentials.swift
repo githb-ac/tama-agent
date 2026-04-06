@@ -8,23 +8,8 @@ private let logger = Logger(
     category: "credentials"
 )
 
-/// OAuth credentials for the Anthropic API.
-struct OAuthCredentials: Codable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresAt: Date
-
-    var isExpired: Bool {
-        Date() >= expiresAt
-    }
-}
-
-/// File-based persistence for Claude OAuth credentials.
-///
-/// Stores credentials as an encrypted JSON file in Application Support,
-/// using a random 256-bit key stored in the macOS Keychain.
+/// Keychain-backed encryption key used by credential stores.
 enum ClaudeCredentials {
-    private static let fileName = "claude-oauth.enc"
     private static let keychainService = "com.unstablemind.tamagotchai"
     private static let keychainAccount = "encryption-key"
 
@@ -85,85 +70,5 @@ enum ClaudeCredentials {
 
         let status = SecItemAdd(query as CFDictionary, nil)
         return status == errSecSuccess
-    }
-
-    // MARK: - File Storage
-
-    private static func credentialsURL() throws -> URL {
-        let appSupport = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let dir = appSupport.appendingPathComponent("Tamagotchai", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent(fileName)
-    }
-
-    static func save(_ credentials: OAuthCredentials) throws {
-        do {
-            let data = try JSONEncoder().encode(credentials)
-            let sealed = try ChaChaPoly.seal(data, using: sharedEncryptionKey)
-            let combined = sealed.combined
-            try combined.write(to: credentialsURL())
-            logger.info("Credentials saved successfully")
-        } catch {
-            logger.error("Failed to save credentials: \(error.localizedDescription)")
-            throw error
-        }
-    }
-
-    static func load() -> OAuthCredentials? {
-        let url: URL
-        do {
-            url = try credentialsURL()
-        } catch {
-            logger.error("Failed to resolve credentials URL: \(error.localizedDescription)")
-            return nil
-        }
-
-        let combined: Data
-        do {
-            combined = try Data(contentsOf: url)
-        } catch {
-            logger.error("Failed to read credentials file: \(error.localizedDescription)")
-            return nil
-        }
-
-        let box: ChaChaPoly.SealedBox
-        do {
-            box = try ChaChaPoly.SealedBox(combined: combined)
-        } catch {
-            logger.error("Failed to create sealed box from credentials data: \(error.localizedDescription)")
-            return nil
-        }
-
-        let data: Data
-        do {
-            data = try ChaChaPoly.open(box, using: sharedEncryptionKey)
-        } catch {
-            logger.error("Failed to decrypt credentials: \(error.localizedDescription)")
-            return nil
-        }
-
-        do {
-            let credentials = try JSONDecoder().decode(OAuthCredentials.self, from: data)
-            logger.info("Credentials loaded successfully")
-            return credentials
-        } catch {
-            logger.error("Failed to decode credentials JSON: \(error.localizedDescription)")
-            return nil
-        }
-    }
-
-    static func delete() {
-        do {
-            let url = try credentialsURL()
-            try FileManager.default.removeItem(at: url)
-            logger.info("Credentials deleted successfully")
-        } catch {
-            logger.error("Failed to delete credentials: \(error.localizedDescription)")
-        }
     }
 }

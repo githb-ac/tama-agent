@@ -1,5 +1,4 @@
 import AppKit
-import CoreVideo
 import os
 
 private let panelLogger = Logger(

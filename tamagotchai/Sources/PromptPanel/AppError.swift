@@ -5,11 +5,9 @@ enum AppError {
     case overloaded
     case authFailed
     case subscriptionRequired(String)
-    case serverIssue(Int)
     case notConnected
     case timeout
     case streamInterrupted(String)
-    case loginFailed(String)
     case unknown(String)
 
     /// The bold title shown at the top of the error block.
@@ -21,16 +19,12 @@ enum AppError {
             "Authentication Failed"
         case .subscriptionRequired:
             "Subscription Required"
-        case .serverIssue:
-            "Server Issue"
         case .notConnected:
             "Not Connected"
         case .timeout:
             "Connection Timed Out"
         case .streamInterrupted:
             "Stream Interrupted"
-        case .loginFailed:
-            "Login Failed"
         case .unknown:
             "Something Went Wrong"
         }
@@ -45,8 +39,6 @@ enum AppError {
             "Your session has expired. Check your API key in AI Settings."
         case let .subscriptionRequired(detail):
             detail
-        case let .serverIssue(code):
-            "The API server is experiencing problems (HTTP \(code)). Try again shortly."
         case .notConnected:
             "Add an API key in AI Settings to get started."
         case .timeout:
@@ -54,10 +46,6 @@ enum AppError {
         case let .streamInterrupted(detail):
             detail.isEmpty
                 ? "The response was interrupted. Try sending your message again."
-                : detail
-        case let .loginFailed(detail):
-            detail.isEmpty
-                ? "Couldn't connect. Please try again."
                 : detail
         case let .unknown(detail):
             detail.isEmpty
@@ -69,9 +57,9 @@ enum AppError {
     /// The tint color for the error block background and border.
     var tint: NSColor {
         switch self {
-        case .overloaded, .serverIssue, .streamInterrupted, .unknown, .notConnected:
+        case .overloaded, .streamInterrupted, .unknown, .notConnected:
             .systemRed
-        case .authFailed, .loginFailed, .subscriptionRequired:
+        case .authFailed, .subscriptionRequired:
             .systemOrange
         case .timeout:
             .systemGray
