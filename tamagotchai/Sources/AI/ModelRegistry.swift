@@ -94,7 +94,7 @@ enum AIProvider: String, Codable, CaseIterable, Identifiable {
         case .moonshot: true
         case .xiaomi: true
         case .openai: false
-        case .minimax: false
+        case .minimax: true
         }
     }
 }
@@ -172,7 +172,7 @@ enum ModelRegistry {
             name: "MiniMax M2.7",
             provider: .minimax,
             contextWindow: 204_800,
-            maxOutputTokens: 131_072,
+            maxOutputTokens: 16384,
             supportsTools: true,
             supportsThinking: true
         ),
@@ -181,7 +181,7 @@ enum ModelRegistry {
             name: "MiniMax M2.7 Highspeed",
             provider: .minimax,
             contextWindow: 204_800,
-            maxOutputTokens: 131_072,
+            maxOutputTokens: 16384,
             supportsTools: true,
             supportsThinking: true
         ),
@@ -202,7 +202,7 @@ enum ModelRegistry {
         case .openai:
             models.first { $0.id == "gpt-5.4-mini" }!
         case .minimax:
-            models.first { $0.id == "MiniMax-M2.7" }!
+            models.first { $0.id == "MiniMax-M2.7-highspeed" }!
         }
     }
 

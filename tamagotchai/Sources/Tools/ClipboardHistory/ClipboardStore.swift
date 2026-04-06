@@ -12,7 +12,7 @@ final class ClipboardStore {
     )
 
     private(set) var entries: [ClipboardEntry] = []
-    private let maxEntries = 200
+    private let maxEntries = 25
 
     private let storageURL: URL = {
         let appSupport = FileManager.default.urls(
@@ -30,14 +30,19 @@ final class ClipboardStore {
     }
 
     func add(_ entry: ClipboardEntry) {
-        // Deduplicate: skip if the last entry has identical text content
-        if let last = entries.first,
-           last.contentType == entry.contentType,
-           last.textContent == entry.textContent,
-           entry.contentType == .text
-        {
-            return
+        // Deduplicate: skip if any existing entry has identical content
+        let isDuplicate = entries.contains { existing in
+            guard existing.contentType == entry.contentType else { return false }
+            switch entry.contentType {
+            case .text:
+                return existing.textContent == entry.textContent
+            case .fileURL:
+                return existing.fileURL == entry.fileURL
+            case .image:
+                return existing.imageData == entry.imageData
+            }
         }
+        if isDuplicate { return }
 
         entries.insert(entry, at: 0)
         if entries.count > maxEntries {

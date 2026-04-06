@@ -236,14 +236,18 @@ final class ClaudeService {
             "model": model.id,
             "max_tokens": model.maxOutputTokens,
             "stream": true,
-            "system": fullSystemPrompt,
+            "system": [["type": "text", "text": fullSystemPrompt]],
             "messages": messages,
+            "temperature": 1.0,
         ]
 
         // Add tools if present (Anthropic native format — no conversion needed)
         if let tools, !tools.isEmpty {
             body["tools"] = tools
         }
+
+        // Note: thinking/reasoning is omitted entirely (not disabled) — MiniMax
+        // treats an absent field as "no thinking", matching real-world usage.
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return request
