@@ -161,11 +161,6 @@ enum CodexRequestBuilder {
     /// Convert Anthropic tool definitions to Codex function format.
     private static func convertTools(_ tools: [[String: Any]]) -> [[String: Any]] {
         tools.compactMap { tool -> [String: Any]? in
-            // Skip Anthropic server-side tools
-            if let type = tool["type"] as? String, type.contains("web_search") {
-                return nil
-            }
-
             guard let name = tool["name"] as? String else { return nil }
 
             var function: [String: Any] = [

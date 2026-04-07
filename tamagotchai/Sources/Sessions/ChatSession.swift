@@ -15,18 +15,17 @@ enum MessageContent: Codable {
     case text(String)
     case toolUse(id: String, name: String, input: Data)
     case toolResult(toolUseId: String, content: String)
-    case serverToolUse(id: String, name: String, input: Data)
-    case serverToolResult(toolUseId: String, content: Data)
-    case serverToolResultError(toolUseId: String, errorCode: String)
 
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case type, text, id, name, input, toolUseId, content, errorCode
+        case type, text, id, name, input, toolUseId, content
     }
 
     private enum ContentType: String, Codable {
-        case text, toolUse, toolResult, serverToolUse, serverToolResult, serverToolResultError
+        case text, toolUse, toolResult
+        // Legacy types from removed server-side web search — decoded as .text("") and filtered out.
+        case serverToolUse, serverToolResult, serverToolResultError
     }
 
     func encode(to encoder: Encoder) throws {
@@ -44,19 +43,6 @@ enum MessageContent: Codable {
             try container.encode(ContentType.toolResult, forKey: .type)
             try container.encode(toolUseId, forKey: .toolUseId)
             try container.encode(content, forKey: .content)
-        case let .serverToolUse(id, name, input):
-            try container.encode(ContentType.serverToolUse, forKey: .type)
-            try container.encode(id, forKey: .id)
-            try container.encode(name, forKey: .name)
-            try container.encode(input, forKey: .input)
-        case let .serverToolResult(toolUseId, content):
-            try container.encode(ContentType.serverToolResult, forKey: .type)
-            try container.encode(toolUseId, forKey: .toolUseId)
-            try container.encode(content, forKey: .content)
-        case let .serverToolResultError(toolUseId, errorCode):
-            try container.encode(ContentType.serverToolResultError, forKey: .type)
-            try container.encode(toolUseId, forKey: .toolUseId)
-            try container.encode(errorCode, forKey: .errorCode)
         }
     }
 
@@ -76,19 +62,9 @@ enum MessageContent: Codable {
             let toolUseId = try container.decode(String.self, forKey: .toolUseId)
             let content = try container.decode(String.self, forKey: .content)
             self = .toolResult(toolUseId: toolUseId, content: content)
-        case .serverToolUse:
-            let id = try container.decode(String.self, forKey: .id)
-            let name = try container.decode(String.self, forKey: .name)
-            let input = try container.decode(Data.self, forKey: .input)
-            self = .serverToolUse(id: id, name: name, input: input)
-        case .serverToolResult:
-            let toolUseId = try container.decode(String.self, forKey: .toolUseId)
-            let content = try container.decode(Data.self, forKey: .content)
-            self = .serverToolResult(toolUseId: toolUseId, content: content)
-        case .serverToolResultError:
-            let toolUseId = try container.decode(String.self, forKey: .toolUseId)
-            let errorCode = try container.decode(String.self, forKey: .errorCode)
-            self = .serverToolResultError(toolUseId: toolUseId, errorCode: errorCode)
+        case .serverToolUse, .serverToolResult, .serverToolResultError:
+            // Legacy server-side web search blocks — drop silently.
+            self = .text("")
         }
     }
 }
@@ -194,29 +170,6 @@ extension ChatMessage {
                         }
                         blocks.append(.toolResult(toolUseId: toolUseId, content: content))
                     }
-                case "server_tool_use":
-                    if let id = block["id"] as? String,
-                       let name = block["name"] as? String
-                    {
-                        let input = block["input"] as? [String: Any] ?? [:]
-                        let data = (try? JSONSerialization.data(withJSONObject: input)) ?? Data()
-                        blocks.append(.serverToolUse(id: id, name: name, input: data))
-                    }
-                case "web_search_tool_result":
-                    if let toolUseId = block["tool_use_id"] as? String {
-                        if let contentArr = block["content"] as? [[String: Any]],
-                           let first = contentArr.first,
-                           first["type"] as? String == "web_search_tool_result_error"
-                        {
-                            let errorCode = first["error_code"] as? String ?? "unknown"
-                            blocks.append(.serverToolResultError(toolUseId: toolUseId, errorCode: errorCode))
-                        } else {
-                            let contentData = (try? JSONSerialization.data(
-                                withJSONObject: block["content"] ?? []
-                            )) ?? Data()
-                            blocks.append(.serverToolResult(toolUseId: toolUseId, content: contentData))
-                        }
-                    }
                 default:
                     break
                 }
@@ -243,18 +196,6 @@ extension ChatMessage {
                 return ["type": "tool_use", "id": id, "name": name, "input": input]
             case let .toolResult(toolUseId, content):
                 return ["type": "tool_result", "tool_use_id": toolUseId, "content": content]
-            case let .serverToolUse(id, name, inputData):
-                let input = (try? JSONSerialization.jsonObject(with: inputData) as? [String: Any]) ?? [:]
-                return ["type": "server_tool_use", "id": id, "name": name, "input": input]
-            case let .serverToolResult(toolUseId, contentData):
-                let content = (try? JSONSerialization.jsonObject(with: contentData)) ?? []
-                return ["type": "web_search_tool_result", "tool_use_id": toolUseId, "content": content]
-            case let .serverToolResultError(toolUseId, errorCode):
-                return [
-                    "type": "web_search_tool_result",
-                    "tool_use_id": toolUseId,
-                    "content": [["type": "web_search_tool_result_error", "error_code": errorCode]],
-                ] as [String: Any]
             }
         }
 

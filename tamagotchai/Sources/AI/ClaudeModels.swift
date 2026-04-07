@@ -4,12 +4,6 @@ import Foundation
 enum ContentBlock: @unchecked Sendable {
     case text(String)
     case toolUse(id: String, name: String, input: [String: Any])
-    /// Server-side tool (web_search) — executed by Anthropic, passed through as-is.
-    case serverToolUse(id: String, name: String, input: [String: Any])
-    /// Server-side tool result (web_search_tool_result) — passed through as-is.
-    case serverToolResult(toolUseId: String, content: [[String: Any]])
-    /// Server-side tool result error (web_search_tool_result with error).
-    case serverToolResultError(toolUseId: String, errorCode: String)
 }
 
 /// Structured response from an API call (Anthropic or OpenAI-compatible).

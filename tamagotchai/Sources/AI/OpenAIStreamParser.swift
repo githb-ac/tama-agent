@@ -6,7 +6,7 @@ private let logger = Logger(
     category: "openai-stream"
 )
 
-/// Parses SSE events from OpenAI-compatible streaming APIs (Moonshot/Kimi).
+/// Parses SSE events from OpenAI-compatible streaming APIs.
 ///
 /// OpenAI streams use `data: {json}` lines with `choices[0].delta` containing
 /// content, tool_calls, and reasoning_content. Terminated by `data: [DONE]`.
@@ -19,7 +19,7 @@ final class OpenAIStreamParser {
     // Text accumulation
     private var textParts: [String] = []
 
-    // Reasoning/thinking content accumulation (Moonshot sends reasoning_content in deltas)
+    // Reasoning/thinking content accumulation (some providers send reasoning_content in deltas)
     private var reasoningParts: [String] = []
 
     // Tool call accumulation — OpenAI streams tool calls incrementally by index

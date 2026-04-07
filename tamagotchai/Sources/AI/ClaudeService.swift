@@ -2,7 +2,7 @@ import Foundation
 import os
 
 /// Singleton service for calling AI APIs. Supports Anthropic (Claude) and
-/// OpenAI-compatible providers (Moonshot/Kimi) via ProviderStore.
+/// OpenAI-compatible providers via ProviderStore.
 @MainActor
 final class ClaudeService {
     static let shared = ClaudeService()
@@ -334,16 +334,7 @@ final class ClaudeService {
 
         // Convert tools from Anthropic format to OpenAI function calling format
         if let tools, !tools.isEmpty {
-            var openAITools: [[String: Any]] = tools.compactMap { convertToolToOpenAI($0) }
-
-            // Moonshot: inject built-in $web_search tool
-            if model.provider == .moonshot {
-                openAITools.append([
-                    "type": "builtin_function",
-                    "function": ["name": "$web_search"],
-                ])
-            }
-
+            let openAITools: [[String: Any]] = tools.compactMap { convertToolToOpenAI($0) }
             body["tools"] = openAITools
         }
 
@@ -442,11 +433,6 @@ final class ClaudeService {
 
     /// Convert an Anthropic tool definition to OpenAI function calling format.
     private func convertToolToOpenAI(_ tool: [String: Any]) -> [String: Any]? {
-        // Skip Anthropic server-side tools (web_search_20250305, etc.)
-        if let type = tool["type"] as? String, type.contains("web_search") {
-            return nil
-        }
-
         guard let name = tool["name"] as? String else { return nil }
 
         var function: [String: Any] = ["name": name]

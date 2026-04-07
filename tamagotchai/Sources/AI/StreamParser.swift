@@ -15,11 +15,10 @@ final class StreamParser {
     private var contentBlocks: [ContentBlock] = []
     private var stopReason: String?
 
-    // Client tool-use accumulation
+    // Tool-use accumulation
     private var toolId: String?
     private var toolName: String?
     private var toolJsonParts: [String] = []
-    private var isServerTool = false
 
     // Text accumulation
     private var textParts: [String] = []
@@ -112,40 +111,8 @@ final class StreamParser {
             toolId = block["id"] as? String
             toolName = block["name"] as? String
             toolJsonParts = []
-            isServerTool = false
             if let id = toolId, let name = toolName {
                 onEvent(.toolUseStart(id: id, name: name))
-            }
-        } else if type == "server_tool_use" {
-            flushText()
-            toolId = block["id"] as? String
-            toolName = block["name"] as? String
-            toolJsonParts = []
-            isServerTool = true
-            if let id = toolId, let name = toolName {
-                onEvent(.toolUseStart(id: id, name: name))
-            }
-        } else if type == "web_search_tool_result" {
-            let useId = block["tool_use_id"] as? String ?? ""
-            let content = block["content"] as? [[String: Any]] ?? []
-            // Check for error in the content array
-            if let first = content.first,
-               first["type"] as? String == "web_search_tool_result_error",
-               let errorCode = first["error_code"] as? String
-            {
-                contentBlocks.append(
-                    .serverToolResultError(
-                        toolUseId: useId,
-                        errorCode: errorCode
-                    )
-                )
-            } else {
-                contentBlocks.append(
-                    .serverToolResult(
-                        toolUseId: useId,
-                        content: content
-                    )
-                )
             }
         } else if type == "text" {
             textParts = []
@@ -193,27 +160,16 @@ final class StreamParser {
                     )
                 }
             }
-            if isServerTool {
-                contentBlocks.append(
-                    .serverToolUse(
-                        id: id,
-                        name: toolName ?? "",
-                        input: input
-                    )
+            contentBlocks.append(
+                .toolUse(
+                    id: id,
+                    name: toolName ?? "",
+                    input: input
                 )
-            } else {
-                contentBlocks.append(
-                    .toolUse(
-                        id: id,
-                        name: toolName ?? "",
-                        input: input
-                    )
-                )
-            }
+            )
             toolId = nil
             toolName = nil
             toolJsonParts = []
-            isServerTool = false
         } else {
             flushText()
         }

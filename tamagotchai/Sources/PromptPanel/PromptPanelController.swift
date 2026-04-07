@@ -601,33 +601,28 @@ final class PromptPanelController {
 
     private var agentSystemPrompt: String {
         let cwd = Self.ensureWorkspace()
-        let webSearchNote = ClaudeService.shared.currentModel.provider == .moonshot
-            ? " you also have built-in web search — use it freely to find current information."
-            : ""
         return """
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \
-        search code (grep/find), list directories (ls), and fetch web \
-        pages. you can also create reminders (create_reminder) and \
+        search code (grep/find), list directories (ls), fetch web \
+        pages (web_fetch), and search the web (web_search). \
+        you can also create reminders (create_reminder) and \
         routines (create_routine) that run on a schedule, list them \
         (list_schedules), and delete them (delete_schedule). \
         reminders fire macOS notifications; routines run an LLM prompt \
-        and notify with the result.\(webSearchNote) working directory: \(cwd)
+        and notify with the result. working directory: \(cwd)
         """
     }
 
     private var voiceSystemPrompt: String {
         let cwd = Self.ensureWorkspace()
-        let webSearchNote = ClaudeService.shared.currentModel.provider == .moonshot
-            ? " you also have built-in web search — use it freely to find current information."
-            : ""
         return """
         you have access to tools for working with the user's computer. \
         you can run shell commands (bash), read/write/edit files, \
         search code (grep/find), list directories (ls), fetch web \
-        pages, and manage reminders/routines (create_reminder, \
-        create_routine, list_schedules, delete_schedule).\(webSearchNote) \
-        working directory: \(cwd)
+        pages (web_fetch), search the web (web_search), and manage \
+        reminders/routines (create_reminder, create_routine, \
+        list_schedules, delete_schedule). working directory: \(cwd)
 
         CRITICAL: this is a voice conversation. your response will be spoken aloud. \
         you MUST be extremely brief:
