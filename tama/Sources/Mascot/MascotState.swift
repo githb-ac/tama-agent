@@ -1,7 +1,7 @@
 import Foundation
 
 /// The different animation states for the mascot.
-/// Each state maps to a state or animation name in the Rive file.
+/// Each state maps to an animation name in the faces.riv Rive file.
 enum MascotState: String, CaseIterable {
     /// Default — mascot is idle, gently breathing/blinking.
     case idle
@@ -11,4 +11,8 @@ enum MascotState: String, CaseIterable {
     case waiting
     /// AI response is streaming in.
     case responding
+    /// Mascot is thinking/concerned.
+    case thinking
+    /// Mascot is happy/pleased.
+    case happy
 }

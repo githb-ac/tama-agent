@@ -9,14 +9,15 @@ private let mascotLogger = Logger(
 )
 
 /// Manages a Rive-powered mascot that reacts to app state.
-/// Uses the "Avatar 1" artboard from avatar_pack.riv with state machine "avatar".
-/// Inputs: isHappy (Bool), isSad (Bool).
+/// Uses the robot.riv file with state machine "Expressions".
 ///
 /// The mascot is never static — it always has some animation running.
-/// - idle: Rive's built-in idle loop (blinking, breathing)
-/// - typing: cycles happy ↔ idle on each keystroke burst
-/// - waiting: sad face, with periodic nervous glances (sad ↔ idle flicker)
-/// - responding: happy, with gentle idle dips so it doesn't freeze
+/// - idle: Robot idle animation
+/// - typing: Interested/attentive expression
+/// - waiting: Slightly concerned expression
+/// - responding: Happy expression
+/// - thinking: Contemplative expression
+/// - happy: Very happy expression
 ///
 /// Pausing while typing triggers a graceful fallback to idle after a delay.
 @MainActor
@@ -27,13 +28,15 @@ final class MascotView {
 
     /// Timer for cycling animations within a state.
     private var cycleTimer: Timer?
-    private var cycleToggle = false
 
     /// Timer that fires when the user stops typing, to fall back to idle.
     private var typingIdleTimer: Timer?
 
     /// Timer for gentle idle "breathing" — periodic micro-expressions.
     private var idleBreathTimer: Timer?
+
+    /// Timer for brief animation revert delays.
+    private var revertTimer: Timer?
 
     /// A borderless child window that hosts the mascot via Metal/SwiftUI.
     let window: NSWindow
@@ -90,6 +93,10 @@ final class MascotView {
             startWaitingCycle()
         case .responding:
             startRespondingCycle()
+        case .thinking:
+            applyThinking()
+        case .happy:
+            applyHappy()
         }
     }
 
@@ -118,7 +125,7 @@ final class MascotView {
         riveViewModel.setInput("isSad", value: false)
     }
 
-    /// Idle isn't truly static — periodically flash a micro-smile to feel alive.
+    /// Idle has periodic subtle micro-expressions to feel alive.
     private func startIdleBreathing() {
         idleBreathTimer = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -139,30 +146,13 @@ final class MascotView {
     // MARK: - Typing
 
     private func startTypingCycle() {
-        cycleToggle = true
-        applyTypingToggle()
-
-        cycleTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.currentState == .typing else {
-                    self?.cycleTimer?.invalidate()
-                    self?.cycleTimer = nil
-                    return
-                }
-                self.cycleToggle.toggle()
-                self.applyTypingToggle()
-            }
-        }
-    }
-
-    private func applyTypingToggle() {
+        riveViewModel.setInput("isHappy", value: true)
         riveViewModel.setInput("isSad", value: false)
-        riveViewModel.setInput("isHappy", value: cycleToggle)
     }
 
     // MARK: - Waiting
 
-    /// Waiting: mostly sad, but flickers to idle briefly to look nervous/alive.
+    /// Waiting: mostly sad, but flickers briefly to look nervous/alive.
     private func startWaitingCycle() {
         riveViewModel.setInput("isHappy", value: false)
         riveViewModel.setInput("isSad", value: true)
@@ -174,7 +164,7 @@ final class MascotView {
                     self?.cycleTimer = nil
                     return
                 }
-                // Brief nervous glance — drop sad, then restore
+                // Brief neutral drop
                 self.riveViewModel.setInput("isSad", value: false)
                 self.scheduleRevert(delay: .seconds(0.4), expectedState: .waiting) {
                     $0.riveViewModel.setInput("isSad", value: true)
@@ -185,7 +175,7 @@ final class MascotView {
 
     // MARK: - Responding
 
-    /// Responding: mostly happy, with gentle idle dips so it doesn't freeze.
+    /// Responding: happy, with gentle idle dips so it doesn't freeze.
     private func startRespondingCycle() {
         riveViewModel.setInput("isSad", value: false)
         riveViewModel.setInput("isHappy", value: true)
@@ -206,6 +196,20 @@ final class MascotView {
         }
     }
 
+    // MARK: - Thinking
+
+    private func applyThinking() {
+        riveViewModel.setInput("isHappy", value: false)
+        riveViewModel.setInput("isSad", value: true)
+    }
+
+    // MARK: - Happy
+
+    private func applyHappy() {
+        riveViewModel.setInput("isHappy", value: true)
+        riveViewModel.setInput("isSad", value: false)
+    }
+
     // MARK: - Helpers
 
     /// Schedules a delayed revert action, only executing if the mascot is still
@@ -215,10 +219,16 @@ final class MascotView {
         expectedState: MascotState,
         action: @escaping (MascotView) -> Void
     ) {
-        Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            guard let self, currentState == expectedState else { return }
-            action(self)
+        revertTimer?.invalidate()
+        let seconds = Double(delay.components.seconds)
+        revertTimer = Timer.scheduledTimer(
+            withTimeInterval: seconds,
+            repeats: false
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.currentState == expectedState else { return }
+                action(self)
+            }
         }
     }
 
@@ -247,6 +257,7 @@ final class MascotView {
         typingIdleTimer = nil
         idleBreathTimer?.invalidate()
         idleBreathTimer = nil
-        cycleToggle = false
+        revertTimer?.invalidate()
+        revertTimer = nil
     }
 }

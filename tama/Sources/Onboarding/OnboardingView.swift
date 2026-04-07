@@ -47,7 +47,7 @@ struct OnboardingView: View {
     // Browser
     @ObservedObject private var chromium = ChromiumManager.shared
 
-    // Rive
+    // Rive - avatar mascot for onboarding
     @State private var riveViewModel = RiveViewModel(
         fileName: "avatar_pack",
         stateMachineName: "avatar",
@@ -85,12 +85,6 @@ struct OnboardingView: View {
             riveViewModel.view()
                 .frame(width: 64, height: 64)
                 .padding(.bottom, 4)
-                .onChange(of: step) { _, newStep in
-                    applyMascotState(for: newStep)
-                }
-                .onAppear {
-                    applyMascotState(for: .welcome)
-                }
 
             // Step indicator
             stepIndicator
@@ -125,29 +119,6 @@ struct OnboardingView: View {
             navigationBar
         }
         .frame(width: 420, height: 530)
-    }
-
-    // MARK: - Mascot State
-
-    private func applyMascotState(for step: OnboardingStep) {
-        switch step {
-        case .welcome:
-            riveViewModel.setInput("isHappy", value: true)
-            riveViewModel.setInput("isSad", value: false)
-        case .permissions:
-            riveViewModel.setInput("isHappy", value: false)
-            riveViewModel.setInput("isSad", value: false)
-        case .login:
-            riveViewModel.setInput("isHappy", value: isLoggedIn)
-            riveViewModel.setInput("isSad", value: !isLoggedIn)
-        case .voice:
-            let ready = kokoro.modelDownloaded && !kokoro.downloadedVoices.isEmpty
-            riveViewModel.setInput("isHappy", value: ready)
-            riveViewModel.setInput("isSad", value: kokoro.modelDownloading)
-        case .ready:
-            riveViewModel.setInput("isHappy", value: true)
-            riveViewModel.setInput("isSad", value: false)
-        }
     }
 
     // MARK: - Step Indicator
@@ -378,7 +349,6 @@ struct OnboardingView: View {
         microphoneGranted = checker.isMicrophoneGranted()
         speechGranted = checker.isSpeechRecognitionGranted()
         appManagementGranted = checker.isAppManagementGranted()
-        applyMascotState(for: step)
     }
 
     private func startPermissionPolling() {
@@ -456,9 +426,6 @@ struct OnboardingView: View {
             }
         }
         .padding(.horizontal, 14)
-        .onChange(of: isLoggedIn) { _, _ in
-            applyMascotState(for: step)
-        }
     }
 
     private func providerLoginRow(_ provider: AIProvider) -> some View {
@@ -701,12 +668,6 @@ struct OnboardingView: View {
                 .padding(.top, 8)
         }
         .padding(.horizontal, 14)
-        .onChange(of: kokoro.modelDownloaded) { _, _ in
-            applyMascotState(for: step)
-        }
-        .onChange(of: kokoro.downloadedVoices) { _, _ in
-            applyMascotState(for: step)
-        }
     }
 
     // MARK: - Ready
