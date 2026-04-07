@@ -104,6 +104,156 @@ final class ResponseTextView: NSTextView {
     private static let blockCornerRadius: CGFloat = 8
     private var copyButtons: [CodeBlockCopyButton] = []
 
+    /// Called when the user clicks an inline image attachment. The argument is the image URL string.
+    var onImageClicked: ((String) -> Void)?
+
+    // MARK: - Image hover overlay
+
+    private lazy var imageHoverOverlay: NSView = {
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.borderColor = NSColor.white.withAlphaComponent(0.5).cgColor
+        view.layer?.borderWidth = 2
+        view.layer?.cornerRadius = 6
+        view.layer?.opacity = 0
+        return view
+    }()
+
+    private var currentHoverURL: String?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        // Remove old areas tagged as ours.
+        for area in trackingAreas where area.owner === self {
+            removeTrackingArea(area)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if let url = imageURL(at: event.locationInWindow) {
+            if url != currentHoverURL {
+                showImageHover(at: event.locationInWindow)
+                currentHoverURL = url
+            }
+            NSCursor.pointingHand.set()
+        } else if currentHoverURL != nil {
+            hideImageHover()
+            currentHoverURL = nil
+            NSCursor.arrow.set()
+        }
+        super.mouseMoved(with: event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        if currentHoverURL != nil {
+            hideImageHover()
+            currentHoverURL = nil
+            NSCursor.arrow.set()
+        }
+        super.mouseExited(with: event)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if let url = imageURL(at: event.locationInWindow) {
+            onImageClicked?(url)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    /// Shows the hover overlay on the image attachment at the given window point.
+    private func showImageHover(at windowPoint: NSPoint) {
+        guard let rect = imageRect(at: windowPoint) else { return }
+
+        if imageHoverOverlay.superview == nil {
+            addSubview(imageHoverOverlay)
+        }
+        imageHoverOverlay.frame = rect.insetBy(dx: 1, dy: 1)
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            imageHoverOverlay.animator().alphaValue = 1
+        }
+    }
+
+    /// Hides the hover overlay with a fade-out animation.
+    private func hideImageHover() {
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            imageHoverOverlay.animator().alphaValue = 0
+        }
+    }
+
+    /// Returns the bounding rect (in view coordinates) of the image attachment
+    /// at the given window point, or nil if none.
+    private func imageRect(at windowPoint: NSPoint) -> NSRect? {
+        guard let storage = textStorage,
+              let layoutMgr = layoutManager,
+              let textCont = textContainer,
+              storage.length > 0
+        else { return nil }
+
+        let point = convert(windowPoint, from: nil)
+        let idx = characterIndexForInsertion(at: point)
+
+        // Find the character index that has the .imageURL attribute.
+        let charIdx: Int? = if idx < storage.length,
+                               storage.attribute(.imageURL, at: idx, effectiveRange: nil) != nil
+        {
+            idx
+        } else if idx > 0,
+                  storage.attribute(.imageURL, at: idx - 1, effectiveRange: nil) != nil
+        {
+            idx - 1
+        } else {
+            nil
+        }
+
+        guard let ci = charIdx else { return nil }
+
+        let glyphRange = layoutMgr.glyphRange(
+            forCharacterRange: NSRange(location: ci, length: 1),
+            actualCharacterRange: nil
+        )
+        var rect = layoutMgr.boundingRect(forGlyphRange: glyphRange, in: textCont)
+        rect.origin.x += textContainerOrigin.x
+        rect.origin.y += textContainerOrigin.y
+        return rect
+    }
+
+    /// Returns the `.imageURL` attribute at the given window-coordinate point,
+    /// checking both the character at the insertion index and the one before it
+    /// (the insertion point sits between characters, so a click on the right
+    /// half of an attachment returns the index *after* it).
+    private func imageURL(at windowPoint: NSPoint) -> String? {
+        guard let storage = textStorage, storage.length > 0 else { return nil }
+        let point = convert(windowPoint, from: nil)
+        let idx = characterIndexForInsertion(at: point)
+
+        // Check the character at idx.
+        if idx < storage.length,
+           let url = storage.attribute(.imageURL, at: idx, effectiveRange: nil) as? String
+        {
+            return url
+        }
+        // Check the character just before idx (handles right-half clicks).
+        if idx > 0,
+           let url = storage.attribute(.imageURL, at: idx - 1, effectiveRange: nil) as? String
+        {
+            return url
+        }
+        return nil
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let storage = textStorage,
               let layoutMgr = layoutManager,

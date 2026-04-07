@@ -42,8 +42,17 @@ final class BrowserManager: @unchecked Sendable {
     /// Returns an active CDP connection, creating one if needed.
     func ensureConnected(headless: Bool = false) async throws -> CDPConnection {
         // Return existing connection if still alive.
-        if let existing = lock.withLock({ connection }) {
+        if let existing = lock.withLock({ connection }), existing.isConnected {
             return existing
+        }
+
+        // Clear stale connection before reconnecting.
+        lock.withLock {
+            if let stale = connection, !stale.isConnected {
+                logger.info("Clearing dead CDP connection, will reconnect")
+                stale.disconnect()
+                connection = nil
+            }
         }
 
         // Try connect mode first (attach to already-running browser with debugging enabled).

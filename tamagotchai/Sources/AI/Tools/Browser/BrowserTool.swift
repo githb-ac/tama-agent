@@ -264,28 +264,65 @@ final class BrowserTool: AgentTool {
         return result
     }
 
-    /// Take a screenshot of the page.
+    /// Take a screenshot of the page and save it to ~/Documents/Tamagotchai/Screenshots/.
     private func screenshot(connection: CDPConnection) async throws -> String {
+        // Set a reasonable viewport so screenshots aren't tiny (headless default is ~800x600).
+        _ = try? await connection.send(method: "Emulation.setDeviceMetricsOverride", params: [
+            "width": 1440,
+            "height": 900,
+            "deviceScaleFactor": 2,
+            "mobile": false,
+        ])
+
+        // Brief pause for the page to re-layout at the new viewport size.
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
         let result = try await connection.send(method: "Page.captureScreenshot", params: [
             "format": "png",
         ])
 
-        guard let base64Data = result["data"] as? String else {
+        guard let base64Data = result["data"] as? String,
+              let imageData = Data(base64Encoded: base64Data)
+        else {
             return "Screenshot captured but no data returned"
         }
 
-        let byteSize = base64Data.count
-        logger.info("Screenshot captured: \(byteSize) bytes base64")
+        // Save to the Screenshots directory.
+        let screenshotsDir = await PromptPanelController.screenshotsDirectory
+        try? FileManager.default.createDirectory(
+            atPath: screenshotsDir, withIntermediateDirectories: true
+        )
+
+        let timestamp = ISO8601DateFormatter.string(
+            from: Date(), timeZone: .current,
+            formatOptions: [.withYear, .withMonth, .withDay, .withTime, .withDashSeparatorInDate]
+        )
+        let sanitized = timestamp
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "T", with: "_")
+        let filename = "screenshot_\(sanitized).png"
+        let filePath = (screenshotsDir as NSString).appendingPathComponent(filename)
+
+        do {
+            try imageData.write(to: URL(fileURLWithPath: filePath))
+        } catch {
+            logger.error("Failed to save screenshot: \(error.localizedDescription, privacy: .public)")
+            return "Screenshot captured (\(imageData.count) bytes) but failed to save: \(error.localizedDescription)"
+        }
+
+        logger.info("Screenshot saved to \(filePath, privacy: .public)")
 
         // Get viewport dimensions for the response.
         let layoutResult = try? await connection.send(method: "Page.getLayoutMetrics", params: nil)
         let cssWidth = (layoutResult?["cssVisualViewport"] as? [String: Any])?["clientWidth"] as? Int ?? 0
         let cssHeight = (layoutResult?["cssVisualViewport"] as? [String: Any])?["clientHeight"] as? Int ?? 0
 
+        var info = "Screenshot saved to \(filePath)"
         if cssWidth > 0, cssHeight > 0 {
-            return "[Screenshot captured: \(cssWidth)x\(cssHeight), \(byteSize) bytes base64 PNG]"
+            info += " (\(cssWidth)×\(cssHeight), \(imageData.count) bytes)"
         }
-        return "[Screenshot captured: \(byteSize) bytes base64 PNG]"
+        info += "\n\nTo show the user, include it as a markdown image: ![screenshot](\(filePath))"
+        return info
     }
 
     /// Execute arbitrary JavaScript in the page.

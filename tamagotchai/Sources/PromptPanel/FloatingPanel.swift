@@ -30,6 +30,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Tracks whether we're currently dismissing to avoid re-entrant calls.
     var isDismissing = false
 
+    /// When true, `resignKey()` will not dismiss the panel (e.g. image preview is open).
+    var isShowingImagePreview = false
+
     /// Raw markdown text accumulated during streaming.
     var rawMarkdown = ""
 
@@ -386,6 +389,9 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             .underlineStyle: NSUnderlineStyle.single.rawValue,
             .cursor: NSCursor.pointingHand,
         ]
+        textView.onImageClicked = { [weak self] url in
+            self?.showImagePreview(for: url)
+        }
         return textView
     }()
 
@@ -590,8 +596,40 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     // MARK: - Dismiss on focus loss
 
     override func resignKey() {
+        guard !isShowingImagePreview else { return }
         // Skip super to avoid AppKit's inactive window styling flash before our fade-out.
         dismiss()
+    }
+
+    // MARK: - Image Preview
+
+    private var imagePreviewPanel: ImagePreviewPanel?
+
+    func showImagePreview(for urlString: String) {
+        guard let image = ImageCache.load(from: urlString) else { return }
+
+        // Derive a short title from the file name
+        let fileName = (urlString as NSString).lastPathComponent
+        let title = fileName.isEmpty ? "Image Preview" : fileName
+
+        isShowingImagePreview = true
+
+        let preview = ImagePreviewPanel(image: image, title: title)
+        preview.onDismiss = { [weak self] in
+            self?.dismissImagePreview()
+        }
+        preview.center()
+        preview.makeKeyAndOrderFront(nil)
+        imagePreviewPanel = preview
+    }
+
+    func dismissImagePreview() {
+        if let preview = imagePreviewPanel {
+            preview.orderOut(nil)
+            imagePreviewPanel = nil
+        }
+        isShowingImagePreview = false
+        makeKeyAndOrderFront(nil)
     }
 
     // MARK: - NSTextFieldDelegate — Return key

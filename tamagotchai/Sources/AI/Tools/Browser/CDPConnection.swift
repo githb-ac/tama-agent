@@ -26,6 +26,9 @@ final class CDPConnection: @unchecked Sendable {
     private let lock = NSLock()
     private var receiveTask: Task<Void, Never>?
 
+    /// Whether the underlying WebSocket is still connected.
+    private(set) var isConnected = false
+
     private var eventContinuation: AsyncStream<CDPEvent>.Continuation?
 
     /// Stream of CDP events (e.g. `Page.loadEventFired`).
@@ -47,8 +50,12 @@ final class CDPConnection: @unchecked Sendable {
     func connect(url: URL) async throws {
         logger.info("Connecting to CDP endpoint: \(url.absoluteString, privacy: .public)")
         let task = session.webSocketTask(with: url)
+        // CDP can send very large messages (e.g. base64 screenshots).
+        // The default 1 MB limit causes "Message too long" errors.
+        task.maximumMessageSize = 64 * 1024 * 1024 // 64 MB
         task.resume()
         webSocketTask = task
+        isConnected = true
 
         // Start the background receive loop.
         receiveTask = Task { [weak self] in
@@ -107,6 +114,7 @@ final class CDPConnection: @unchecked Sendable {
     /// Disconnect from the browser.
     func disconnect() {
         logger.info("Disconnecting CDP connection")
+        isConnected = false
         receiveTask?.cancel()
         receiveTask = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
@@ -143,6 +151,14 @@ final class CDPConnection: @unchecked Sendable {
             } catch {
                 if !Task.isCancelled {
                     logger.error("CDP receive error: \(error.localizedDescription, privacy: .public)")
+                }
+                isConnected = false
+                // Fail any pending commands so callers don't hang.
+                lock.withLock {
+                    for (_, continuation) in pendingCommands {
+                        continuation.resume(throwing: CDPError.disconnected)
+                    }
+                    pendingCommands.removeAll()
                 }
                 break
             }

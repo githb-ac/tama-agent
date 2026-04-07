@@ -6,6 +6,7 @@ import Highlightr
 extension NSAttributedString.Key {
     static let codeBlockContent = NSAttributedString.Key("codeBlockContent")
     static let codeBlockLanguage = NSAttributedString.Key("codeBlockLanguage")
+    static let imageURL = NSAttributedString.Key("imageURL")
 }
 
 /// Renders markdown text to NSAttributedString with styling suited for a dark HUD panel.
@@ -757,15 +758,47 @@ extension MarkdownRenderer {
                     .replacingOccurrences(of: "&", with: "&\u{200B}")
                 result.append(NSAttributedString(string: wrappable, attributes: linkAttrs))
             }
-            // Image ![alt](url) — render as [🖼 alt]
+            // Image ![alt](url) — render inline image or fallback to [🖼 alt]
             else if scanner.currentChar == "!", scanner.peekNext == "[" {
                 scanner.advance() // skip !
-                if let (altText, _) = scanner.scanLink() {
-                    let display = altText.isEmpty ? "🖼 Image" : "🖼 \(altText)"
-                    result.append(NSAttributedString(string: display, attributes: [
-                        .font: baseFont,
-                        .foregroundColor: dimTextColor,
-                    ]))
+                if let (altText, urlString) = scanner.scanLink() {
+                    if let image = ImageCache.load(from: urlString) {
+                        // Scale to fit panel width (max ~600px)
+                        let maxWidth: CGFloat = 600
+                        let scale = min(1.0, maxWidth / image.size.width)
+                        let scaledSize = NSSize(
+                            width: image.size.width * scale,
+                            height: image.size.height * scale
+                        )
+                        let scaledImage = NSImage(size: scaledSize)
+                        scaledImage.lockFocus()
+                        image.draw(
+                            in: NSRect(origin: .zero, size: scaledSize),
+                            from: NSRect(origin: .zero, size: image.size),
+                            operation: .copy,
+                            fraction: 1.0
+                        )
+                        scaledImage.unlockFocus()
+
+                        let attachment = NSTextAttachment()
+                        let cell = NSTextAttachmentCell(imageCell: scaledImage)
+                        attachment.attachmentCell = cell
+                        attachment.bounds = NSRect(
+                            origin: .zero, size: scaledSize
+                        )
+                        let attachStr = NSMutableAttributedString(
+                            attributedString: NSAttributedString(attachment: attachment)
+                        )
+                        let fullRange = NSRange(location: 0, length: attachStr.length)
+                        attachStr.addAttribute(.imageURL, value: urlString, range: fullRange)
+                        result.append(attachStr)
+                    } else {
+                        let display = altText.isEmpty ? "🖼 Image" : "🖼 \(altText)"
+                        result.append(NSAttributedString(string: display, attributes: [
+                            .font: baseFont,
+                            .foregroundColor: dimTextColor,
+                        ]))
+                    }
                 } else {
                     result.append(attributed("!", font: baseFont))
                 }

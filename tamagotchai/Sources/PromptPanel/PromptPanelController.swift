@@ -26,14 +26,24 @@ final class PromptPanelController {
     private var currentTab: SessionTab = .chats
     private var dismissObserver: NSObjectProtocol?
 
-    /// Returns ~/Documents/Tamagotchai, creating it if needed.
+    /// Returns ~/Documents/Tamagotchai, creating it (and the Screenshots subdirectory) if needed.
     private static func ensureWorkspace() -> String {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let workspace = docs.appendingPathComponent("Tamagotchai")
         if !FileManager.default.fileExists(atPath: workspace.path) {
             try? FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
         }
+        let screenshots = workspace.appendingPathComponent("Screenshots")
+        if !FileManager.default.fileExists(atPath: screenshots.path) {
+            try? FileManager.default.createDirectory(at: screenshots, withIntermediateDirectories: true)
+        }
         return workspace.path
+    }
+
+    /// The path to the Screenshots directory inside the workspace.
+    static var screenshotsDirectory: String {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("Tamagotchai/Screenshots").path
     }
 
     // MARK: - Public
