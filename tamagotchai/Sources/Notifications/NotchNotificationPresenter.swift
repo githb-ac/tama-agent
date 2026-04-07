@@ -46,6 +46,18 @@ enum NotchNotificationPresenter {
         )
     }
 
+    /// Show an agent reply notification (when panel was dismissed during processing).
+    static func showAgentReply(message: String) {
+        logger.info("Presenting toast agent reply")
+        showToast(
+            icon: "bubble.left.fill",
+            iconColor: .systemPurple,
+            title: "Tama",
+            subtitle: message,
+            duration: 6
+        )
+    }
+
     /// Show a routine result notification.
     static func showRoutineResult(name: String, result: String) {
         logger.info("Presenting toast routine result: '\(name)'")

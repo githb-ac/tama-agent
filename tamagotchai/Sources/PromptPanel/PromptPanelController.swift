@@ -220,7 +220,15 @@ final class PromptPanelController {
         newPanel.onDismiss = { [weak self] in
             guard let self else { return }
             isPanelDismissed = true
-            cancelAllActiveTasks()
+
+            // Cancel UI-only tasks (stream rendering, TTS, voice) but
+            // let the agent task keep running in the background so the
+            // LLM call completes and the user gets a notification.
+            activeStreamTask?.cancel()
+            activeStreamTask = nil
+            SpeechService.shared.stop()
+            VoiceService.shared.stopFollowUpCapture()
+            panel?.hideToolIndicator()
             isVoiceMode = false
 
             // Schedule TTS engine unload after delay to free memory
@@ -490,6 +498,10 @@ final class PromptPanelController {
             // if an unexpected code path skips continuation.finish().
             defer { continuation.finish() }
 
+            // Accumulate final response text so we can show a notification
+            // if the panel was dismissed while the agent was working.
+            nonisolated(unsafe) var backgroundAccumulatedText = ""
+
             do {
                 try Task.checkCancellation()
                 let updatedHistory = try await agentLoop.run(
@@ -498,6 +510,7 @@ final class PromptPanelController {
                     onEvent: { [weak self] event in
                         switch event {
                         case let .textDelta(delta):
+                            backgroundAccumulatedText += delta
                             MainActor.assumeIsolated {
                                 self?.panel?.hideToolIndicator()
                                 if speakInline {
@@ -536,6 +549,19 @@ final class PromptPanelController {
                 // swiftformat:disable:next redundantSelf
                 logger.info("Conversation history updated — \(self.conversationHistory.count) messages")
                 saveCurrentSession()
+
+                // If the panel was dismissed while the agent was working,
+                // notify the user with the response.
+                if isPanelDismissed {
+                    let reply = backgroundAccumulatedText
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !reply.isEmpty {
+                        logger.info("Panel dismissed — showing background reply notification")
+                        NotchNotificationPresenter.showAgentReply(message: reply)
+                    }
+                    MenuBarMood.shared.setActivity(nil)
+                    activeAgentTask = nil
+                }
             } catch is AgentDismissError {
                 logger.info("Agent dismissed — closing panel")
                 isDismissedByAgent = true
