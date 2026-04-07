@@ -11,7 +11,8 @@ struct ClaudeModelsTests {
                 .toolUse(id: "t1", name: "bash", input: ["command": "ls"]),
                 .text("world"),
             ],
-            stopReason: "end_turn"
+            stopReason: "end_turn",
+            reasoningContent: nil
         )
         #expect(response.textContent == "Hello world")
     }
@@ -22,10 +23,10 @@ struct ClaudeModelsTests {
             content: [
                 .text("Some text"),
                 .toolUse(id: "t1", name: "bash", input: ["command": "ls"]),
-                .serverToolUse(id: "s1", name: "web_search", input: ["query": "test"]),
                 .toolUse(id: "t2", name: "read", input: ["file_path": "a.txt"]),
             ],
-            stopReason: "tool_use"
+            stopReason: "tool_use",
+            reasoningContent: nil
         )
         let calls = response.toolUseCalls
         #expect(calls.count == 2)
@@ -37,7 +38,7 @@ struct ClaudeModelsTests {
 
     @Test("empty response returns empty string and empty array")
     func emptyResponse() {
-        let response = ClaudeResponse(content: [], stopReason: nil)
+        let response = ClaudeResponse(content: [], stopReason: nil, reasoningContent: nil)
         #expect(response.textContent == "")
         #expect(response.toolUseCalls.isEmpty)
     }
@@ -46,7 +47,8 @@ struct ClaudeModelsTests {
     func textContentJoinsBlocks() {
         let response = ClaudeResponse(
             content: [.text("abc"), .text("def"), .text("ghi")],
-            stopReason: "end_turn"
+            stopReason: "end_turn",
+            reasoningContent: nil
         )
         #expect(response.textContent == "abcdefghi")
     }

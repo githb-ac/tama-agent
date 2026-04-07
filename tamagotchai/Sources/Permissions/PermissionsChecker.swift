@@ -120,6 +120,37 @@ final class PermissionsChecker {
         requestSpeechAccess(completion: completion)
     }
 
+    // MARK: - App Management
+
+    /// Checks if App Management permission is granted by attempting a test
+    /// operation on a temporary .app bundle inside Application Support.
+    func isAppManagementGranted() -> Bool {
+        let testDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Tamagotchai/.appmanagement-check")
+        let testApp = testDir.appendingPathComponent("Test.app")
+        let testFile = testApp.appendingPathComponent("Contents/Info.plist")
+
+        do {
+            try FileManager.default.createDirectory(
+                at: testApp.appendingPathComponent("Contents"),
+                withIntermediateDirectories: true
+            )
+            try Data().write(to: testFile)
+            try FileManager.default.removeItem(at: testDir)
+            logger.info("App Management permission check: granted")
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: testDir)
+            logger.info("App Management permission check: denied (\(error.localizedDescription))")
+            return false
+        }
+    }
+
+    func openAppManagementSettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles")!
+        NSWorkspace.shared.open(url)
+    }
+
     // MARK: - Helpers
 
     /// Reveals the app bundle in Finder so the user can drag it into System Settings.

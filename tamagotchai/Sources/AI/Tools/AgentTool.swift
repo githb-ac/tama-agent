@@ -70,6 +70,7 @@ final class ToolRegistry: Sendable {
             DeleteScheduleTool(),
             TaskTool(),
             DismissTool(),
+            BrowserTool(),
         ])
     }
 

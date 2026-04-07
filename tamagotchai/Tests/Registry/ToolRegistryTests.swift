@@ -4,18 +4,19 @@ import Testing
 
 @Suite("ToolRegistry")
 struct ToolRegistryTests {
-    @Test("defaultRegistry creates all 13 tools")
+    @Test("defaultRegistry creates all 16 tools")
     func defaultRegistryHasAllTools() {
         let registry = ToolRegistry.defaultRegistry(workingDirectory: NSTemporaryDirectory())
-        #expect(registry.tools.count == 13)
+        #expect(registry.tools.count == 16)
     }
 
     @Test("tool(named:) returns correct tool")
     func toolNamedReturnsCorrectTool() {
         let registry = ToolRegistry.defaultRegistry(workingDirectory: NSTemporaryDirectory())
         let expectedNames = [
-            "bash", "read", "write", "edit", "ls", "find", "grep", "web_fetch",
-            "create_reminder", "create_routine", "list_schedules", "delete_schedule", "dismiss",
+            "bash", "read", "write", "edit", "ls", "find", "grep", "web_fetch", "web_search",
+            "create_reminder", "create_routine", "list_schedules", "delete_schedule",
+            "task", "dismiss", "browser",
         ]
         for name in expectedNames {
             let tool = registry.tool(named: name)
@@ -34,7 +35,7 @@ struct ToolRegistryTests {
     func apiToolDefinitionsShape() {
         let registry = ToolRegistry.defaultRegistry(workingDirectory: NSTemporaryDirectory())
         let definitions = registry.apiToolDefinitions()
-        #expect(definitions.count == 13)
+        #expect(definitions.count == 16)
 
         for def in definitions {
             #expect(def["name"] is String, "Each definition must have a 'name' string")

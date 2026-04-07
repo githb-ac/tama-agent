@@ -5,6 +5,7 @@ import os
 enum AgentEvent: Sendable {
     case textDelta(String)
     case toolStart(name: String, id: String)
+    case toolRunning(name: String, args: [String: String])
     case toolResult(name: String, output: String)
     case turnComplete(text: String)
     case error(String)
@@ -159,6 +160,13 @@ final class AgentLoop {
         for call in toolCalls {
             let output: String
             nonisolated(unsafe) let args = call.input
+
+            // Emit toolRunning with string-coerced args for the UI indicator.
+            let stringArgs = args.reduce(into: [String: String]()) { result, pair in
+                result[pair.key] = "\(pair.value)"
+            }
+            onEvent(.toolRunning(name: call.name, args: stringArgs))
+
             if let tool = registry.tool(named: call.name) {
                 let startTime = CFAbsoluteTimeGetCurrent()
                 logger.info("Tool execution start: \(call.name) (args: \(Array(call.input.keys)))")

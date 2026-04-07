@@ -485,6 +485,10 @@ final class PromptPanelController {
                                     SpeechService.shared.flushBuffer()
                                 }
                             }
+                        case let .toolRunning(name, args):
+                            MainActor.assumeIsolated {
+                                self?.panel?.showToolIndicator(name: name, args: args)
+                            }
                         case .toolResult:
                             break
                         case .turnComplete:

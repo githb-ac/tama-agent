@@ -58,38 +58,6 @@ struct StreamParserTests {
         }
     }
 
-    @Test("ContentBlock serverToolUse extraction")
-    func contentBlockServerToolUse() {
-        let block = ContentBlock.serverToolUse(id: "s1", name: "web_search", input: ["query": "swift"])
-        if case let .serverToolUse(id, name, input) = block {
-            #expect(id == "s1")
-            #expect(name == "web_search")
-            #expect(input["query"] as? String == "swift")
-        } else {
-            Issue.record("Expected serverToolUse block")
-        }
-    }
-
-    @Test("ContentBlock serverToolResult extraction")
-    func contentBlockServerToolResult() {
-        let content: [[String: Any]] = [["type": "text", "text": "result"]]
-        let block = ContentBlock.serverToolResult(toolUseId: "s1", content: content)
-        if case let .serverToolResult(toolUseId, resultContent) = block {
-            #expect(toolUseId == "s1")
-            #expect(resultContent.count == 1)
-        } else {
-            Issue.record("Expected serverToolResult block")
-        }
-    }
-
-    @Test("ContentBlock serverToolResultError extraction")
-    func contentBlockServerToolResultError() {
-        let block = ContentBlock.serverToolResultError(toolUseId: "s1", errorCode: "rate_limited")
-        if case let .serverToolResultError(toolUseId, errorCode) = block {
-            #expect(toolUseId == "s1")
-            #expect(errorCode == "rate_limited")
-        } else {
-            Issue.record("Expected serverToolResultError block")
-        }
-    }
+    // Tests for serverToolUse, serverToolResult, serverToolResultError removed —
+    // those ContentBlock cases were removed from the source.
 }

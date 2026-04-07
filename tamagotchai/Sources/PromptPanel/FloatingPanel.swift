@@ -539,8 +539,8 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     // MARK: - Tool Indicator
 
-    func showToolIndicator(name: String) {
-        toolIndicatorView.show(toolName: name)
+    func showToolIndicator(name: String, args: [String: String] = [:]) {
+        toolIndicatorView.show(toolName: name, args: args)
         responseScrollView.contentInsets.bottom = toolIndicatorBottomInset
     }
 

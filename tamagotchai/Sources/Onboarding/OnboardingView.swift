@@ -30,6 +30,7 @@ struct OnboardingView: View {
     @State private var fullDiskGranted = false
     @State private var microphoneGranted = false
     @State private var speechGranted = false
+    @State private var appManagementGranted = false
     @State private var permissionPollTimer: Timer?
     @State private var axObserver: NSObjectProtocol?
 
@@ -42,6 +43,9 @@ struct OnboardingView: View {
 
     // Voice
     @ObservedObject private var kokoro = KokoroManager.shared
+
+    // Browser
+    @ObservedObject private var chromium = ChromiumManager.shared
 
     // Rive
     @State private var riveViewModel = RiveViewModel(
@@ -120,7 +124,7 @@ struct OnboardingView: View {
             // Navigation
             navigationBar
         }
-        .frame(width: 420, height: 440)
+        .frame(width: 420, height: 530)
     }
 
     // MARK: - Mascot State
@@ -252,6 +256,23 @@ struct OnboardingView: View {
                         PermissionsChecker.shared.openMicrophoneSettings()
                     }
                 }
+
+                Divider().opacity(0.3).padding(.horizontal, 14)
+
+                permissionRow(
+                    title: "App Management",
+                    description: appManagementGranted
+                        ? "Allows managing the bundled browser"
+                        : "Open Settings, toggle Tamagotchai on",
+                    granted: appManagementGranted
+                ) {
+                    OnboardingController.yieldToSystemUI()
+                    PermissionsChecker.shared.openAppManagementSettings()
+                }
+
+                Divider().opacity(0.3).padding(.horizontal, 14)
+
+                browserRow
             }
 
             HStack(spacing: 8) {
@@ -302,12 +323,61 @@ struct OnboardingView: View {
         .padding(.vertical, 6)
     }
 
+    private var hasBrowser: Bool {
+        BrowserManager.installedSystemBrowser != nil || chromium.isDownloaded
+    }
+
+    private var browserDescription: String {
+        if chromium.isDownloaded {
+            return "Chrome for Testing is ready"
+        }
+        if let name = BrowserManager.installedSystemBrowser {
+            return "\(name) detected"
+        }
+        return "~400 MB download for web browsing"
+    }
+
+    private var browserRow: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Browser (Optional)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                Text(browserDescription)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.45))
+            }
+
+            Spacer()
+
+            if hasBrowser {
+                Text("Ready")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.green.opacity(0.9))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.green.opacity(0.15))
+                    .clipShape(Capsule())
+            } else if chromium.isDownloading {
+                ProgressView(value: chromium.downloadProgress)
+                    .frame(width: 60)
+                    .tint(.white.opacity(0.6))
+                    .scaleEffect(y: 0.5)
+            } else {
+                GlassButton("Download") { chromium.downloadChromium() }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+    }
+
     private func refreshPermissions() {
         let checker = PermissionsChecker.shared
         accessibilityGranted = checker.isAccessibilityGranted()
         fullDiskGranted = checker.isFullDiskAccessGranted()
         microphoneGranted = checker.isMicrophoneGranted()
         speechGranted = checker.isSpeechRecognitionGranted()
+        appManagementGranted = checker.isAppManagementGranted()
         applyMascotState(for: step)
     }
 
@@ -655,6 +725,7 @@ struct OnboardingView: View {
                 setupSummaryRow("AI Model", done: isLoggedIn)
                 setupSummaryRow("Accessibility", done: accessibilityGranted)
                 setupSummaryRow("Voice Model", done: kokoro.modelDownloaded && !kokoro.downloadedVoices.isEmpty)
+                setupSummaryRow("Browser", done: hasBrowser)
             }
             .padding(.horizontal, 40)
             .padding(.top, 8)
