@@ -10,8 +10,9 @@ private let logger = Logger(
 final class TaskTool: AgentTool {
     let name = "task"
     let description = """
-    Manage task lists with checklist items. \
-    Actions: "create" (new list), "update" (modify items), "delete" (remove list or items).
+    Create and manage task checklists stored for later execution. \
+    Actions: "create" (new list), "update" (modify items), "delete" (remove list or items). \
+    Tasks are NOT executed immediately — they appear in the Tasks Pane for manual run.
     """
 
     nonisolated var inputSchema: [String: Any] {
