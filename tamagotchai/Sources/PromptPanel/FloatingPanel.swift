@@ -144,7 +144,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Custom animated tab bar with a sliding highlight indicator.
     lazy var tabBar: AnimatedTabBar = {
         let bar = AnimatedTabBar(
-            labels: ["Chats", "Reminders", "Routines", "Tools"]
+            labels: ["Chats", "Reminders", "Routines", "Tasks", "Tools"]
         ) { [weak self] index in
             self?.tabBarChanged(index)
         }
@@ -211,6 +211,37 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Whether we're currently viewing a session's conversation (chat/reminder/routine).
     var isInsideSession = false
 
+    // MARK: - Tasks Mode
+
+    /// The task list view shown when the Tasks tab is active.
+    lazy var taskListView: TaskListView = {
+        let v = TaskListView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.onSelectTaskList = { [weak self] taskList in
+            self?.onSelectTaskList?(taskList)
+        }
+        v.onDeleteTaskList = { [weak self] taskList in
+            self?.onDeleteTaskList?(taskList)
+        }
+        return v
+    }()
+
+    /// Height constraint for the task list.
+    var taskListHeightConstraint: NSLayoutConstraint?
+
+    /// The detail view for a single task list (when drilled in).
+    var taskDetailView: TaskDetailView?
+
+    /// Height constraint for the task detail view.
+    var taskDetailHeightConstraint: NSLayoutConstraint?
+
+    /// Whether the panel is currently in Tasks mode (Tasks tab selected).
+    var isTasksMode = false
+
+    /// Whether we're currently viewing a task list's detail (drilled in).
+    var isInsideTaskDetail = false
+
     /// The currently active tool (when drilled in).
     var activeTool: PanelTool?
 
@@ -251,6 +282,12 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Called when the input field text changes while in Tools mode.
     var onToolSearchChanged: ((String) -> Void)?
+
+    /// Called when the user selects a task list from the task list.
+    var onSelectTaskList: ((TaskList) -> Void)?
+
+    /// Called when the user deletes a task list from the task list.
+    var onDeleteTaskList: ((TaskList) -> Void)?
 
     // MARK: - UI Components
 
@@ -441,6 +478,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         mainStack.addArrangedSubview(tabBarContainer)
         mainStack.addArrangedSubview(sessionListView)
         mainStack.addArrangedSubview(toolListView)
+        mainStack.addArrangedSubview(taskListView)
         mainStack.addArrangedSubview(responseScrollView)
 
         let sessionHeight = sessionListView.heightAnchor.constraint(equalToConstant: 0)
@@ -450,6 +488,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         let toolListHeight = toolListView.heightAnchor.constraint(equalToConstant: 0)
         toolListHeight.isActive = true
         toolListHeightConstraint = toolListHeight
+
+        let taskListHeight = taskListView.heightAnchor.constraint(equalToConstant: 0)
+        taskListHeight.isActive = true
+        taskListHeightConstraint = taskListHeight
 
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true
@@ -511,6 +553,11 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, event.keyCode == 53 {
+            // If inside a task detail view, pop back to task list
+            if isInsideTaskDetail {
+                popTaskDetail()
+                return
+            }
             // If inside a tool's drilled-in view, pop back to tool list
             if isInsideTool {
                 popToolView()

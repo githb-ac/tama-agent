@@ -172,6 +172,12 @@ final class PromptPanelController {
         newPanel.onTabChanged = { [weak self] tab in
             self?.handleTabChanged(tab)
         }
+        newPanel.onSelectTaskList = { [weak self] taskList in
+            self?.panel?.showTaskDetail(taskList: taskList)
+        }
+        newPanel.onDeleteTaskList = { [weak self] taskList in
+            self?.deleteTaskList(taskList)
+        }
         newPanel.onToolSelected = { [weak self] tool in
             self?.panel?.pushToolView(tool: tool)
         }
@@ -258,8 +264,21 @@ final class PromptPanelController {
             return
         }
 
-        // Hide tool list if switching away from Tools
+        // Tasks tab shows task lists
+        if tab == .tasks {
+            panel?.hideToolList()
+            let groups = TaskStore.shared.allTaskListsGroupedByDate()
+            if groups.isEmpty {
+                panel?.showTaskList([], emptyMessage: "No task lists yet. Ask Tama to create one for you.")
+            } else {
+                panel?.showTaskList(groups)
+            }
+            return
+        }
+
+        // Hide tool list and task list if switching away
         panel?.hideToolList()
+        panel?.hideTaskList()
 
         // Restart voice capture when returning from the Tools tab
         if wasOnTools {
@@ -273,7 +292,7 @@ final class PromptPanelController {
             SessionStore.shared.sessionsGroupedByDate(type: .reminders)
         case .routines:
             SessionStore.shared.sessionsGroupedByDate(type: .routines)
-        case .tools:
+        case .tasks, .tools:
             [] // unreachable — handled above
         }
         if groups.isEmpty {
@@ -284,7 +303,7 @@ final class PromptPanelController {
                 "No reminders yet. Ask Tama to set one for you."
             case .routines:
                 "No routines yet. Ask Tama to create one for you."
-            case .tools:
+            case .tasks, .tools:
                 "" // unreachable
             }
             panel?.showSessionList([], emptyMessage: message)
@@ -305,6 +324,14 @@ final class PromptPanelController {
         }
 
         // Refresh the list for the current tab
+        handleTabChanged(currentTab)
+    }
+
+    /// Deletes a task list and refreshes the task list view.
+    private func deleteTaskList(_ taskList: TaskList) {
+        logger.info("Deleting task list '\(taskList.title)'")
+        TaskStore.shared.delete(id: taskList.id)
+        // Refresh the task list
         handleTabChanged(currentTab)
     }
 

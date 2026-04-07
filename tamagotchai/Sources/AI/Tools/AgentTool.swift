@@ -68,6 +68,7 @@ final class ToolRegistry: Sendable {
             CreateRoutineTool(),
             ListSchedulesTool(),
             DeleteScheduleTool(),
+            TaskTool(),
             DismissTool(),
         ])
     }

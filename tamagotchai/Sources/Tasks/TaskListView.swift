@@ -1,21 +1,12 @@
 import AppKit
 
-/// The active tab filter for the session list.
-enum SessionTab: Int {
-    case chats = 0
-    case reminders = 1
-    case routines = 2
-    case tasks = 3
-    case tools = 4
-}
+/// Displays grouped task lists in a scrollable list, matching the SessionListView pattern.
+final class TaskListView: NSView {
+    /// Called when a task list is clicked.
+    var onSelectTaskList: ((TaskList) -> Void)?
 
-/// Displays grouped chat sessions in a scrollable list below the input field.
-final class SessionListView: NSView {
-    /// Called when a session is clicked.
-    var onSelectSession: ((ChatSession) -> Void)?
-
-    /// Called when a session's delete button is clicked.
-    var onDeleteSession: ((ChatSession) -> Void)?
+    /// Called when a task list's delete button is clicked.
+    var onDeleteTaskList: ((TaskList) -> Void)?
 
     private lazy var scrollView: NSScrollView = {
         let sv = NSScrollView()
@@ -56,7 +47,7 @@ final class SessionListView: NSView {
         translatesAutoresizingMaskIntoConstraints = false
         addSubview(scrollView)
 
-        let docView = FlippedDocumentView()
+        let docView = TaskFlippedDocumentView()
         docView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = docView
         docView.addSubview(contentStack)
@@ -75,8 +66,8 @@ final class SessionListView: NSView {
         ])
     }
 
-    /// Reloads the session list with grouped data, or shows an empty state message.
-    func reload(groups: [(label: String, sessions: [ChatSession])], emptyMessage: String? = nil) {
+    /// Reloads the task list with grouped data, or shows an empty state message.
+    func reload(groups: [(label: String, taskLists: [TaskList])], emptyMessage: String? = nil) {
         // Remove old views and tracking areas
         for (area, view) in rowTrackingAreas {
             view.removeTrackingArea(area)
@@ -89,15 +80,15 @@ final class SessionListView: NSView {
         } else {
             for group in groups {
                 contentStack.addArrangedSubview(makeSectionHeader(group.label))
-                for session in group.sessions {
-                    let row = makeSessionRow(session)
+                for taskList in group.taskLists {
+                    let row = makeTaskListRow(taskList)
                     contentStack.addArrangedSubview(row)
                 }
             }
         }
     }
 
-    /// Resets scroll position to show the very first item (including section headers).
+    /// Resets scroll position to show the very first item.
     func scrollToTop() {
         contentStack.layoutSubtreeIfNeeded()
         scrollView.documentView?.layoutSubtreeIfNeeded()
@@ -148,27 +139,27 @@ final class SessionListView: NSView {
         return container
     }
 
-    private func makeSessionRow(_ session: ChatSession) -> NSView {
-        let row = SessionRowView(session: session)
+    private func makeTaskListRow(_ taskList: TaskList) -> NSView {
+        let row = TaskListRowView(taskList: taskList)
         row.translatesAutoresizingMaskIntoConstraints = false
         row.heightAnchor.constraint(equalToConstant: 44).isActive = true
         row.onSelect = { [weak self] in
-            self?.onSelectSession?(session)
+            self?.onSelectTaskList?(taskList)
         }
         row.onDelete = { [weak self] in
-            self?.onDeleteSession?(session)
+            self?.onDeleteTaskList?(taskList)
         }
         return row
     }
 }
 
-// MARK: - Session Row View
+// MARK: - Task List Row View
 
-/// A single session row with hover highlight, delete button, and click handling.
-private final class SessionRowView: NSView {
+/// A single task list row with hover highlight, delete button, and click handling.
+private final class TaskListRowView: NSView {
     var onSelect: (() -> Void)?
     var onDelete: (() -> Void)?
-    private let session: ChatSession
+    private let taskList: TaskList
     private var isHovered = false
     private var trackingArea: NSTrackingArea?
 
@@ -197,28 +188,15 @@ private final class SessionRowView: NSView {
         btn.action = #selector(deleteClicked)
         btn.setContentHuggingPriority(.required, for: .horizontal)
         btn.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-        // Add tracking area for hover effect on the button itself
-        let area = NSTrackingArea(
-            rect: .zero,
-            options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-            owner: btn,
-            userInfo: ["isDeleteButton": true]
-        )
-        btn.addTrackingArea(area)
-
         return btn
     }()
 
-    private lazy var deleteButtonHoverTracker: DeleteButtonHoverTracker = {
-        let tracker = DeleteButtonHoverTracker(button: deleteButton)
-        return tracker
-    }()
+    private lazy var deleteButtonHoverTracker: TaskDeleteButtonHoverTracker = .init(button: deleteButton)
 
     private let timeLabel = NSTextField(labelWithString: "")
 
-    init(session: ChatSession) {
-        self.session = session
+    init(taskList: TaskList) {
+        self.taskList = taskList
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(highlightLayer)
@@ -231,22 +209,31 @@ private final class SessionRowView: NSView {
     }
 
     private func setupViews() {
-        let mood = MenuBarMood.Mood(rawValue: session.moodIcon) ?? .afternoon
         let iconSize: CGFloat = 28
-        let iconImage = MenuBarIcon.sessionIcon(mood: mood, size: iconSize)
+        let iconImage = MenuBarIcon.symbolIcon(name: "checklist", size: iconSize)
         let iconView = NSImageView(image: iconImage)
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.setContentHuggingPriority(.required, for: .horizontal)
         iconView.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        let titleLabel = NSTextField(labelWithString: session.title)
+        let completed = taskList.items.filter(\.isCompleted).count
+        let total = taskList.items.count
+        let subtitle = "\(completed)/\(total)"
+
+        let titleLabel = NSTextField(labelWithString: taskList.title)
         titleLabel.font = .systemFont(ofSize: 18, weight: .regular)
         titleLabel.textColor = .labelColor
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.maximumNumberOfLines = 1
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        timeLabel.stringValue = Self.relativeTime(session.updatedAt)
+        let countLabel = NSTextField(labelWithString: subtitle)
+        countLabel.font = .systemFont(ofSize: 13, weight: .regular)
+        countLabel.textColor = .tertiaryLabelColor
+        countLabel.translatesAutoresizingMaskIntoConstraints = false
+        countLabel.setContentHuggingPriority(.required, for: .horizontal)
+
+        timeLabel.stringValue = Self.relativeTime(taskList.updatedAt)
         timeLabel.font = .systemFont(ofSize: 22, weight: .regular)
         timeLabel.textColor = .tertiaryLabelColor
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -255,10 +242,10 @@ private final class SessionRowView: NSView {
 
         addSubview(iconView)
         addSubview(titleLabel)
+        addSubview(countLabel)
         addSubview(timeLabel)
         addSubview(deleteButton)
 
-        // Size the delete button with padding
         NSLayoutConstraint.activate([
             deleteButton.widthAnchor.constraint(equalToConstant: 56),
             deleteButton.heightAnchor.constraint(equalToConstant: 26),
@@ -272,8 +259,11 @@ private final class SessionRowView: NSView {
 
             titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 10),
             titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: timeLabel.leadingAnchor, constant: -12),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: deleteButton.leadingAnchor, constant: -12),
+
+            countLabel.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 8),
+            countLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            countLabel.trailingAnchor.constraint(lessThanOrEqualTo: timeLabel.leadingAnchor, constant: -12),
+            countLabel.trailingAnchor.constraint(lessThanOrEqualTo: deleteButton.leadingAnchor, constant: -12),
 
             timeLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
             timeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -324,7 +314,6 @@ private final class SessionRowView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        // Don't trigger select if clicking the delete button
         let loc = convert(event.locationInWindow, from: nil)
         if deleteButton.frame.contains(loc) { return }
         ButtonSound.shared.play()
@@ -362,7 +351,7 @@ private final class SessionRowView: NSView {
 // MARK: - Delete Button Hover Tracker
 
 /// Tracks mouse enter/exit on the delete button to adjust its background opacity.
-private final class DeleteButtonHoverTracker: NSResponder {
+private final class TaskDeleteButtonHoverTracker: NSResponder {
     private weak var button: NSButton?
 
     init(button: NSButton) {
@@ -393,8 +382,7 @@ private final class DeleteButtonHoverTracker: NSResponder {
 
 // MARK: - Flipped Document View
 
-/// An NSView with a flipped coordinate system (origin at top-left)
-/// so that scroll views display content from the top down.
-private final class FlippedDocumentView: NSView {
+/// An NSView with a flipped coordinate system for top-down scroll content.
+private final class TaskFlippedDocumentView: NSView {
     override var isFlipped: Bool { true }
 }
