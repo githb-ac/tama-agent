@@ -48,7 +48,7 @@ final class BrowserTool: AgentTool {
                 ],
                 "headless": [
                     "type": "boolean",
-                    "description": "Run browser in headless mode (default: true). Set to false only if the user explicitly asks to see the browser.",
+                    "description": "Run browser in headless mode (default: true). Set to false if the user asks to see the browser.",
                 ],
                 "timeout": [
                     "type": "integer",
@@ -109,11 +109,12 @@ final class BrowserTool: AgentTool {
         logger.info("Navigating to: \(url, privacy: .public)")
 
         // Start listening for Page.loadEventFired before navigating.
+        guard let eventStream = connection.events else {
+            throw BrowserToolError.navigationFailed("Browser event stream unavailable")
+        }
         let loadTask = Task {
-            for await event in connection.events {
-                if event.method == "Page.loadEventFired" {
-                    return
-                }
+            for await event in eventStream where event.method == "Page.loadEventFired" {
+                return
             }
         }
 

@@ -298,15 +298,13 @@ final class BrowserManager: @unchecked Sendable {
                     // Look for the DevTools WebSocket URL line.
                     let lines = buffer.components(separatedBy: .newlines)
                     for line in lines {
-                        if line.contains("DevTools listening on ws://") {
-                            if let range = line.range(of: "ws://[^\\s]+", options: .regularExpression),
-                               let url = URL(string: String(line[range]))
-                            {
-                                logger.info("Browser debug URL: \(url.absoluteString, privacy: .public)")
-                                resumeGuard.resume(returning: url)
-                                return
-                            }
-                        }
+                        guard line.contains("DevTools listening on ws://") else { continue }
+                        guard let range = line.range(of: "ws://[^\\s]+", options: .regularExpression),
+                              let url = URL(string: String(line[range]))
+                        else { continue }
+                        logger.info("Browser debug URL: \(url.absoluteString, privacy: .public)")
+                        resumeGuard.resume(returning: url)
+                        return
                     }
                 }
 

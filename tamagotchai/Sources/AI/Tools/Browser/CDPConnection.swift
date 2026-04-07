@@ -32,7 +32,7 @@ final class CDPConnection: @unchecked Sendable {
     private var eventContinuation: AsyncStream<CDPEvent>.Continuation?
 
     /// Stream of CDP events (e.g. `Page.loadEventFired`).
-    private(set) var events: AsyncStream<CDPEvent>!
+    private(set) var events: AsyncStream<CDPEvent>?
 
     // MARK: - Lifecycle
 

@@ -529,99 +529,23 @@ final class PromptPanelController {
                     messages: capturedHistory,
                     systemPrompt: systemPrompt,
                     onEvent: { [weak self] event in
-                        switch event {
-                        case let .textDelta(delta):
-                            backgroundAccumulatedText += delta
-                            MainActor.assumeIsolated {
-                                guard self?.currentSession?.id == capturedSessionId else { return }
-                                self?.panel?.hideToolIndicator()
-                                if speakInline {
-                                    SpeechService.shared.feedChunk(delta)
-                                }
-                            }
-                            continuation.yield(delta)
-                        case let .toolStart(name, _):
-                            continuation.yield("\n\n")
-                            MainActor.assumeIsolated {
-                                guard self?.currentSession?.id == capturedSessionId else { return }
-                                self?.panel?.showToolIndicator(name: name)
-                                if speakInline {
-                                    SpeechService.shared.flushBuffer()
-                                }
-                            }
-                        case let .toolRunning(name, args):
-                            MainActor.assumeIsolated {
-                                guard self?.currentSession?.id == capturedSessionId else { return }
-                                self?.panel?.showToolIndicator(name: name, args: args)
-                            }
-                        case .toolResult:
-                            break
-                        case .turnComplete:
-                            MainActor.assumeIsolated {
-                                guard self?.currentSession?.id == capturedSessionId else { return }
-                                self?.panel?.hideToolIndicator()
-                            }
-                        case let .error(msg):
-                            MainActor.assumeIsolated {
-                                guard self?.currentSession?.id == capturedSessionId else { return }
-                                self?.panel?.hideToolIndicator()
-                            }
-                            continuation.yield("\n\n> **Error:** \(msg)\n\n")
-                        }
+                        self?.handleAgentEvent(
+                            event,
+                            capturedSessionId: capturedSessionId,
+                            speakInline: speakInline,
+                            backgroundAccumulatedText: &backgroundAccumulatedText,
+                            continuation: continuation
+                        )
                     }
                 )
 
-                guard let updatedHistory else { return }
-
-                // Save the completed conversation directly to the session store
-                // using the captured ID — self's state may have changed (user
-                // started a new conversation or reopened the panel).
-                let messages = updatedHistory.compactMap { ChatMessage.fromAPIFormat($0) }
-                if !messages.isEmpty, var session = SessionStore.shared.session(for: capturedSessionId) {
-                    session.messages = messages
-                    session.updatedAt = Date()
-                    SessionStore.shared.save(session: session)
-                }
-
-                // Update controller state only if this is still the active session
-                if self?.currentSession?.id == capturedSessionId {
-                    self?.conversationHistory = updatedHistory
-                    self?.currentSession = SessionStore.shared.session(for: capturedSessionId)
-                }
-
-                let count = updatedHistory.count
-                self?.logger.info("Agent finished — \(count) messages saved to session")
-
-                // If the panel was dismissed (or user moved on), notify with the response.
-                let isStillViewing = self?.currentSession?.id == capturedSessionId
-                    && self?.isPanelDismissed != true
-                if !isStillViewing {
-                    let reply = backgroundAccumulatedText
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !reply.isEmpty {
-                        self?.logger.info("Panel dismissed — showing background reply notification")
-                        NotchNotificationPresenter.showAgentReply(message: reply)
-
-                        let content = UNMutableNotificationContent()
-                        content.title = "Tama"
-                        content.body = String(reply.prefix(256))
-                        content.sound = .default
-
-                        let request = UNNotificationRequest(
-                            identifier: UUID().uuidString,
-                            content: content,
-                            trigger: nil
-                        )
-                        try? await UNUserNotificationCenter.current().add(request)
-                    }
-                    MenuBarMood.shared.setActivity(nil)
-                }
+                self?.completeAgentRun(
+                    updatedHistory: updatedHistory,
+                    capturedSessionId: capturedSessionId,
+                    backgroundAccumulatedText: backgroundAccumulatedText
+                )
             } catch is AgentDismissError {
-                self?.logger.info("Agent dismissed — closing panel")
-                self?.isDismissedByAgent = true
-                SpeechService.shared.stop()
-                self?.cancelAllActiveTasks(clearHistory: true)
-                self?.panel?.dismiss()
+                self?.handleAgentDismissed()
             } catch is CancellationError {
                 self?.logger.info("Agent task cancelled")
             } catch let urlError as URLError where urlError.code == .cancelled {
@@ -706,6 +630,119 @@ final class PromptPanelController {
             panel.mascot.setState(.idle)
             startVoiceCapture()
         }
+    }
+
+    // MARK: - Agent Event Handling
+
+    /// Handles a single agent event and updates UI accordingly.
+    private nonisolated func handleAgentEvent(
+        _ event: AgentEvent,
+        capturedSessionId: UUID,
+        speakInline: Bool,
+        backgroundAccumulatedText: inout String,
+        continuation: AsyncThrowingStream<String, Error>.Continuation
+    ) {
+        switch event {
+        case let .textDelta(delta):
+            backgroundAccumulatedText += delta
+            MainActor.assumeIsolated {
+                guard currentSession?.id == capturedSessionId else { return }
+                panel?.hideToolIndicator()
+                if speakInline {
+                    SpeechService.shared.feedChunk(delta)
+                }
+            }
+            continuation.yield(delta)
+        case let .toolStart(name, _):
+            continuation.yield("\n\n")
+            MainActor.assumeIsolated {
+                guard currentSession?.id == capturedSessionId else { return }
+                panel?.showToolIndicator(name: name)
+                if speakInline {
+                    SpeechService.shared.flushBuffer()
+                }
+            }
+        case let .toolRunning(name, args):
+            MainActor.assumeIsolated {
+                guard currentSession?.id == capturedSessionId else { return }
+                panel?.showToolIndicator(name: name, args: args)
+            }
+        case .toolResult:
+            break
+        case .turnComplete:
+            MainActor.assumeIsolated {
+                guard currentSession?.id == capturedSessionId else { return }
+                panel?.hideToolIndicator()
+            }
+        case let .error(msg):
+            MainActor.assumeIsolated {
+                guard currentSession?.id == capturedSessionId else { return }
+                panel?.hideToolIndicator()
+            }
+            continuation.yield("\n\n> **Error:** \(msg)\n\n")
+        }
+    }
+
+    /// Completes an agent run, saving conversation and handling background notifications.
+    private func completeAgentRun(
+        updatedHistory: [[String: Any]]?,
+        capturedSessionId: UUID,
+        backgroundAccumulatedText: String
+    ) {
+        guard let updatedHistory else { return }
+
+        let messages = updatedHistory.compactMap { ChatMessage.fromAPIFormat($0) }
+        if !messages.isEmpty, var session = SessionStore.shared.session(for: capturedSessionId) {
+            session.messages = messages
+            session.updatedAt = Date()
+            SessionStore.shared.save(session: session)
+        }
+
+        if currentSession?.id == capturedSessionId {
+            conversationHistory = updatedHistory
+            currentSession = SessionStore.shared.session(for: capturedSessionId)
+        }
+
+        logger.info("Agent finished — \(updatedHistory.count) messages saved to session")
+        handleBackgroundReplyIfNeeded(
+            backgroundAccumulatedText: backgroundAccumulatedText,
+            capturedSessionId: capturedSessionId
+        )
+    }
+
+    /// Shows a notification if the panel was dismissed while the agent was working.
+    private func handleBackgroundReplyIfNeeded(backgroundAccumulatedText: String, capturedSessionId: UUID) {
+        let isStillViewing = currentSession?.id == capturedSessionId && isPanelDismissed != true
+        if isStillViewing { return }
+
+        let reply = backgroundAccumulatedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !reply.isEmpty else { return }
+
+        logger.info("Panel dismissed — showing background reply notification")
+        NotchNotificationPresenter.showAgentReply(message: reply)
+
+        Task {
+            let content = UNMutableNotificationContent()
+            content.title = "Tama"
+            content.body = String(reply.prefix(256))
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: nil
+            )
+            try? await UNUserNotificationCenter.current().add(request)
+        }
+        MenuBarMood.shared.setActivity(nil)
+    }
+
+    /// Handles the agent dismissing itself (user requested panel close).
+    private func handleAgentDismissed() {
+        logger.info("Agent dismissed — closing panel")
+        isDismissedByAgent = true
+        SpeechService.shared.stop()
+        cancelAllActiveTasks(clearHistory: true)
+        panel?.dismiss()
     }
 
     /// Refreshes the session list if the panel is visible and showing a list tab (not mid-conversation).
