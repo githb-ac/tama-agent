@@ -21,9 +21,58 @@ struct ScheduledJob: Codable, Identifiable {
     var deleteAfterRun: Bool
     var enabled: Bool
     var createdAt: Date
+    var runCount: Int
 
     enum JobType: String, Codable { case reminder, routine }
     enum ScheduleType: String, Codable { case at, every, cron }
+
+    init(
+        id: UUID,
+        name: String,
+        jobType: JobType,
+        scheduleType: ScheduleType,
+        schedule: String?,
+        runAt: Date?,
+        intervalSeconds: Int?,
+        prompt: String,
+        nextRunAt: Date?,
+        deleteAfterRun: Bool,
+        enabled: Bool,
+        createdAt: Date,
+        runCount: Int = 0
+    ) {
+        self.id = id
+        self.name = name
+        self.jobType = jobType
+        self.scheduleType = scheduleType
+        self.schedule = schedule
+        self.runAt = runAt
+        self.intervalSeconds = intervalSeconds
+        self.prompt = prompt
+        self.nextRunAt = nextRunAt
+        self.deleteAfterRun = deleteAfterRun
+        self.enabled = enabled
+        self.createdAt = createdAt
+        self.runCount = runCount
+    }
+
+    // Custom decoder to handle legacy schedules without runCount
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        jobType = try container.decode(JobType.self, forKey: .jobType)
+        scheduleType = try container.decode(ScheduleType.self, forKey: .scheduleType)
+        schedule = try container.decodeIfPresent(String.self, forKey: .schedule)
+        runAt = try container.decodeIfPresent(Date.self, forKey: .runAt)
+        intervalSeconds = try container.decodeIfPresent(Int.self, forKey: .intervalSeconds)
+        prompt = try container.decode(String.self, forKey: .prompt)
+        nextRunAt = try container.decodeIfPresent(Date.self, forKey: .nextRunAt)
+        deleteAfterRun = try container.decode(Bool.self, forKey: .deleteAfterRun)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        runCount = try container.decodeIfPresent(Int.self, forKey: .runCount) ?? 0
+    }
 }
 
 /// Manages scheduled jobs: persistence, polling, and execution.
@@ -33,6 +82,9 @@ final class ScheduleStore {
 
     private(set) var jobs: [ScheduledJob] = []
     private var pollTimer: Timer?
+
+    /// IDs of routines currently executing (for shimmer effect)
+    private(set) var activeRoutineIDs: Set<UUID> = []
 
     private init() {
         loadFromDisk()
@@ -82,7 +134,8 @@ final class ScheduleStore {
             ),
             deleteAfterRun: parsed.type == .at,
             enabled: true,
-            createdAt: Date()
+            createdAt: Date(),
+            runCount: 0
         )
         jobs.append(job)
         saveToDisk()
@@ -99,6 +152,26 @@ final class ScheduleStore {
             return true
         }
         return false
+    }
+
+    func deleteJob(id: UUID) -> Bool {
+        let before = jobs.count
+        jobs.removeAll { $0.id == id }
+        if jobs.count < before {
+            saveToDisk()
+            logger.info("Deleted job \(id.uuidString)")
+            return true
+        }
+        return false
+    }
+
+    func runRoutineNow(id: UUID) {
+        guard let job = jobs.first(where: { $0.id == id && $0.jobType == .routine }) else {
+            logger.warning("Routine \(id.uuidString) not found or not a routine")
+            return
+        }
+        logger.info("Manually triggering routine '\(job.name)'")
+        executeRoutine(job)
     }
 
     func listJobs() -> [ScheduledJob] {
@@ -198,9 +271,18 @@ final class ScheduleStore {
 
     // MARK: - Routine Execution
 
-    private func executeRoutine(_ job: ScheduledJob) {
+    func executeRoutine(_ job: ScheduledJob) {
         Task { @MainActor in
             logger.info("Running routine '\(job.name)' with prompt: \(job.prompt.prefix(100))")
+
+            // Mark as active for shimmer effect
+            activeRoutineIDs.insert(job.id)
+
+            // Increment run count
+            if let index = jobs.firstIndex(where: { $0.id == job.id }) {
+                jobs[index].runCount += 1
+                saveToDisk()
+            }
 
             let agentLoop = AgentLoop()
             let messages: [[String: Any]] = [
@@ -223,6 +305,9 @@ final class ScheduleStore {
                 logger.error("Routine '\(job.name)' failed: \(error.localizedDescription)")
                 resultText = "Routine failed: \(error.localizedDescription)"
             }
+
+            // Mark as inactive
+            activeRoutineIDs.remove(job.id)
 
             // Persist as an individual routine session
             let userMsg = ChatMessage(

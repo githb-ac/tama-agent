@@ -27,11 +27,15 @@ extension FloatingPanel {
         // Also use instant swap if coming from a session (response area visible) to prevent jitter
         let alreadyVisible = !sessionListView.isHidden || !tabBarContainer.isHidden || !responseScrollView.isHidden
 
-        // Hide tool list and task list if switching back from other tabs
+        // Hide tool list, task list, skill list, and routine list if switching back from other tabs
         toolListView.isHidden = true
         toolListHeightConstraint?.constant = 0
         taskListView.isHidden = true
         taskListHeightConstraint?.constant = 0
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+        routineListView.isHidden = true
+        routineListHeightConstraint?.constant = 0
 
         // Reset response area so it doesn't ghost behind the session list
         responseScrollView.isHidden = true
@@ -118,9 +122,12 @@ extension FloatingPanel {
         let sessionListVisible = !sessionListView.isHidden
         let toolListVisible = !toolListView.isHidden
         let taskListVisible = !taskListView.isHidden
+        let skillListVisible = !skillListView.isHidden
+        let routineListVisible = !routineListView.isHidden
         let tabBarVisible = !tabBarContainer.isHidden
 
-        guard sessionListVisible || toolListVisible || taskListVisible || tabBarVisible else { return }
+        guard sessionListVisible || toolListVisible || taskListVisible || skillListVisible || routineListVisible ||
+            tabBarVisible else { return }
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.15
@@ -128,6 +135,8 @@ extension FloatingPanel {
             if sessionListVisible { self.sessionListView.animator().alphaValue = 0 }
             if toolListVisible { self.toolListView.animator().alphaValue = 0 }
             if taskListVisible { self.taskListView.animator().alphaValue = 0 }
+            if skillListVisible { self.skillListView.animator().alphaValue = 0 }
+            if routineListVisible { self.routineListView.animator().alphaValue = 0 }
             if tabBarVisible { self.tabBarContainer.animator().alphaValue = 0 }
         } completionHandler: {
             MainActor.assumeIsolated { [weak self] in
@@ -138,6 +147,10 @@ extension FloatingPanel {
                 toolListHeightConstraint?.constant = 0
                 taskListView.isHidden = true
                 taskListHeightConstraint?.constant = 0
+                skillListView.isHidden = true
+                skillListHeightConstraint?.constant = 0
+                routineListView.isHidden = true
+                routineListHeightConstraint?.constant = 0
 
                 // If the response area is now showing (error or streaming response),
                 // keep the tab bar visible — don't collapse it.
@@ -149,9 +162,11 @@ extension FloatingPanel {
                 tabBarContainer.isHidden = true
                 // Reset tab to "Chats" for next open
                 tabBar.selectTab(0, animated: false)
-                // Reset tools and tasks state
+                // Reset tools, tasks, skills, and routines state
                 hideToolList()
                 hideTaskList()
+                hideSkillList()
+                hideRoutineList()
                 // Collapse the divider too
                 if responseScrollView.isHidden {
                     dividerContainer.isHidden = true
@@ -181,6 +196,10 @@ extension FloatingPanel {
             }
         } else if isTasksMode, !isInsideTaskDetail {
             onTaskSearchChanged?(text)
+        } else if isSkillsMode, !isInsideSkill {
+            onSkillSearchChanged?(text)
+        } else if isRoutinesMode {
+            onRoutineSearchChanged?(text)
         } else if isSessionSearchMode {
             onSessionSearchChanged?(text)
         } else {
@@ -192,6 +211,8 @@ extension FloatingPanel {
 
     /// Shows the tool list (called when Tools tab is selected).
     func showToolList(tools: [PanelTool]) {
+        isInsideSession = false
+
         // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
         let isTabSwitch = !tabBarContainer.isHidden
 
@@ -199,11 +220,15 @@ extension FloatingPanel {
         isInsideTool = false
         activeTool = nil
 
-        // Hide session list, task list, and response area
+        // Hide session list, task list, skill list, routine list, and response area
         sessionListView.isHidden = true
         sessionListHeightConstraint?.constant = 0
         taskListView.isHidden = true
         taskListHeightConstraint?.constant = 0
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+        routineListView.isHidden = true
+        routineListHeightConstraint?.constant = 0
         responseScrollView.isHidden = true
         responseHeightConstraint?.constant = 0
 
@@ -355,17 +380,23 @@ extension FloatingPanel {
 
     /// Shows the task list (called when Tasks tab is selected).
     func showTaskList(_ groups: [(label: String, taskLists: [TaskList])], emptyMessage: String? = nil) {
+        isInsideSession = false
+
         // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
         let isTabSwitch = !tabBarContainer.isHidden
 
         isTasksMode = true
         isInsideTaskDetail = false
 
-        // Hide session list, tool list, and response area
+        // Hide session list, tool list, skill list, routine list, and response area
         sessionListView.isHidden = true
         sessionListHeightConstraint?.constant = 0
         toolListView.isHidden = true
         toolListHeightConstraint?.constant = 0
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+        routineListView.isHidden = true
+        routineListHeightConstraint?.constant = 0
         responseScrollView.isHidden = true
         responseHeightConstraint?.constant = 0
 
@@ -554,19 +585,23 @@ extension FloatingPanel {
 
     /// Shows the skill list (called when Skills tab is selected).
     func showSkillList(_ skills: [Skill]) {
+        isInsideSession = false
+
         // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
         let isTabSwitch = !tabBarContainer.isHidden
 
         isSkillsMode = true
         isInsideSkill = false
 
-        // Hide session list, tool list, task list, skill detail, and response area
+        // Hide session list, tool list, task list, routine list, and response area
         sessionListView.isHidden = true
         sessionListHeightConstraint?.constant = 0
         toolListView.isHidden = true
         toolListHeightConstraint?.constant = 0
         taskListView.isHidden = true
         taskListHeightConstraint?.constant = 0
+        routineListView.isHidden = true
+        routineListHeightConstraint?.constant = 0
         responseScrollView.isHidden = true
         responseHeightConstraint?.constant = 0
 
@@ -716,5 +751,111 @@ extension FloatingPanel {
         } else {
             showSkillList(skills)
         }
+    }
+
+    // MARK: - Routine List
+
+    /// Shows the routine list (called when Routines tab is selected).
+    func showRoutineList(_ routines: [ScheduledJob], emptyMessage: String? = nil) {
+        isInsideSession = false
+
+        // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
+        let isTabSwitch = !tabBarContainer.isHidden
+
+        isRoutinesMode = true
+
+        // Hide session list, tool list, task list, skill list, and response area
+        sessionListView.isHidden = true
+        sessionListHeightConstraint?.constant = 0
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
+        taskListView.isHidden = true
+        taskListHeightConstraint?.constant = 0
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+        responseScrollView.isHidden = true
+        responseHeightConstraint?.constant = 0
+
+        // Update input field
+        inputField.placeholderString = "Search routines..."
+        inputField.stringValue = ""
+
+        // Reload routine list
+        routineListView.reload(
+            routines: routines,
+            emptyMessage: emptyMessage,
+            activeRoutineIDs: ScheduleStore.shared.activeRoutineIDs
+        )
+
+        // Calculate target height based on content
+        let listTargetHeight: CGFloat
+        if routines.isEmpty {
+            listTargetHeight = 80
+        } else {
+            let rowHeight: CGFloat = 44
+            let padding: CGFloat = 12
+            let contentHeight = CGFloat(routines.count) * rowHeight + padding
+            listTargetHeight = min(contentHeight, responseMaxHeight - tabBarHeight)
+        }
+
+        if !isTabSwitch {
+            routineListHeightConstraint?.constant = 0
+        }
+        dividerContainer.isHidden = false
+        tabBarContainer.isHidden = false
+        routineListView.isHidden = false
+        dividerContainer.alphaValue = 1
+        tabBarContainer.alphaValue = 1
+        routineListView.alphaValue = 1
+
+        let newPanelHeight = inputHeight + 1 + tabBarHeight + listTargetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        if isTabSwitch {
+            // Instant swap for tab switches — no animation prevents vertical jitter
+            routineListHeightConstraint?.constant = listTargetHeight
+            setFrame(newFrame, display: true)
+            positionMascotOverSpacer()
+            routineListView.scrollToTop()
+        } else {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                ctx.allowsImplicitAnimation = true
+                self.routineListHeightConstraint?.animator().constant = listTargetHeight
+                self.animator().setFrame(newFrame, display: true)
+            } completionHandler: {
+                MainActor.assumeIsolated { [weak self] in
+                    self?.positionMascotOverSpacer()
+                    self?.routineListView.scrollToTop()
+                }
+            }
+        }
+
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
+    /// Lightweight filter — only reloads the routine list data without touching the input field or frame.
+    func filterRoutineList(routines: [ScheduledJob], emptyMessage: String? = nil) {
+        routineListView.reload(
+            routines: routines,
+            emptyMessage: emptyMessage,
+            activeRoutineIDs: ScheduleStore.shared.activeRoutineIDs
+        )
+        routineListView.scrollToTop()
+    }
+
+    /// Hides the routine list (called when switching away from Routines tab).
+    func hideRoutineList() {
+        isRoutinesMode = false
+        routineListView.isHidden = true
+        routineListHeightConstraint?.constant = 0
     }
 }

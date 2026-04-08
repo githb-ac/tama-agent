@@ -226,14 +226,30 @@ final class PromptPanelController {
         }
         newPanel.onSessionSearchChanged = { [weak self] query in
             guard let self else { return }
-            let type: SessionType = currentTab == .reminders ? .reminders : .routines
-            let groups = SessionStore.shared.searchSessionsGroupedByDate(type: type, query: query)
+            let groups = SessionStore.shared.searchSessionsGroupedByDate(type: .reminders, query: query)
             let emptyMessage = query.isEmpty
-                ? (type == .reminders
-                    ? "No reminders yet. Ask Tama to set one for you."
-                    : "No routines yet. Ask Tama to create one for you.")
-                : "No \(type.rawValue) found."
+                ? "No reminders yet. Ask Tama to set one for you."
+                : "No reminders found."
             panel?.filterSessionList(groups: groups, emptyMessage: emptyMessage)
+        }
+        newPanel.onSelectRoutine = { [weak self] routine in
+            self?.showRoutineDetail(routine)
+        }
+        newPanel.onDeleteRoutine = { [weak self] routine in
+            self?.deleteRoutine(routine)
+        }
+        newPanel.onRunRoutine = { [weak self] routine in
+            self?.runRoutine(routine)
+        }
+        newPanel.onRoutineSearchChanged = { [weak self] query in
+            guard let self else { return }
+            let routines = ScheduleStore.shared.jobs
+                .filter { $0.jobType == .routine }
+                .filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }
+            let emptyMessage = query.isEmpty
+                ? "No routines yet. Ask Tama to create one for you."
+                : "No routines found."
+            panel?.filterRoutineList(routines: routines, emptyMessage: emptyMessage)
         }
         newPanel.onBackToList = { [weak self] in
             guard let self else { return }
@@ -241,7 +257,10 @@ final class PromptPanelController {
             currentSession = nil
             conversationHistory = []
             handleTabChanged(currentTab)
-            startVoiceCapture()
+            // Only start voice capture when returning to Chats tab
+            if currentTab == .chats {
+                startVoiceCapture()
+            }
         }
         newPanel.onInterrupt = { [weak self] in
             guard let self else { return false }
@@ -351,14 +370,26 @@ final class PromptPanelController {
             return
         }
 
-        // Hide tool list, task list, and skill list if switching away
+        // Hide tool list, task list, skill list, and routine list if switching away
         panel?.hideToolList()
         panel?.hideTaskList()
         panel?.hideSkillList()
+        panel?.hideRoutineList()
 
         // Restart voice capture when returning to chats from a search tab
         if tab == .chats, wasSearchTab {
             startVoiceCapture()
+        }
+
+        // Routines tab shows scheduled routines (not session history)
+        if tab == .routines {
+            let routines = ScheduleStore.shared.jobs.filter { $0.jobType == .routine }
+            if routines.isEmpty {
+                panel?.showRoutineList([], emptyMessage: "No routines yet. Ask Tama to create one for you.")
+            } else {
+                panel?.showRoutineList(routines)
+            }
+            return
         }
 
         let (groups, emptyMessage, searchPlaceholder): (
@@ -377,11 +408,7 @@ final class PromptPanelController {
                 "Search reminders..."
             )
         case .routines:
-            (
-                SessionStore.shared.sessionsGroupedByDate(type: .routines),
-                "No routines yet. Ask Tama to create one for you.",
-                "Search routines..."
-            )
+            ([], "", nil) // unreachable — handled above
         case .tasks, .tools, .skills:
             ([], "", nil) // unreachable — handled above
         }
@@ -452,6 +479,80 @@ final class PromptPanelController {
         SkillStore.shared.delete(id: skill.id)
         // Refresh the skill list
         handleTabChanged(currentTab)
+    }
+
+    // MARK: - Routine Management
+
+    /// Shows routine details in the conversation area like a chat session.
+    /// Finds the most recent execution session for this routine, or shows just the prompt if never run.
+    private func showRoutineDetail(_ routine: ScheduledJob) {
+        logger.info("Showing routine '\(routine.name)' details")
+
+        // Find the most recent session for this routine (by name match)
+        let routineSessions = SessionStore.shared.sessions
+            .filter { $0.sessionType == .routines && $0.title == routine.name }
+            .sorted { $0.updatedAt > $1.updatedAt }
+
+        if let mostRecentSession = routineSessions.first {
+            // Show the actual conversation from the last execution
+            panel?.restoreConversation(messages: mostRecentSession.messages)
+        } else {
+            // Never been run - show the prompt as a user message waiting to be executed
+            let userMsg = ChatMessage(
+                id: UUID(),
+                role: .user,
+                content: [.text(routine.prompt)],
+                timestamp: Date()
+            )
+            let assistantMsg = ChatMessage(
+                id: UUID(),
+                role: .assistant,
+                content: [.text("Click **Run** to execute this routine. The result will appear here.")],
+                timestamp: Date()
+            )
+            panel?.restoreConversation(messages: [userMsg, assistantMsg])
+        }
+    }
+
+    private func formatDuration(seconds: Int) -> String {
+        if seconds < 60 {
+            "\(seconds) seconds"
+        } else if seconds < 3600 {
+            "\(seconds / 60) minutes"
+        } else if seconds < 86400 {
+            "\(seconds / 3600) hours"
+        } else {
+            "\(seconds / 86400) days"
+        }
+    }
+
+    /// Deletes a routine and refreshes the routine list.
+    private func deleteRoutine(_ routine: ScheduledJob) {
+        logger.info("Deleting routine '\(routine.name)'")
+        _ = ScheduleStore.shared.deleteJob(id: routine.id)
+        // Refresh the routine list
+        handleTabChanged(currentTab)
+    }
+
+    /// Runs a routine manually.
+    private func runRoutine(_ routine: ScheduledJob) {
+        logger.info("Manually running routine '\(routine.name)'")
+        ScheduleStore.shared.runRoutineNow(id: routine.id)
+        // Refresh the list to show shimmer effect
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.refreshRoutineListIfVisible()
+        }
+    }
+
+    /// Refreshes the routine list if the panel is visible on the Routines tab.
+    private func refreshRoutineListIfVisible() {
+        guard currentTab == .routines, let panel, panel.isVisible, !isPanelDismissed else { return }
+        let routines = ScheduleStore.shared.jobs.filter { $0.jobType == .routine }
+        if routines.isEmpty {
+            panel.showRoutineList([], emptyMessage: "No routines yet. Ask Tama to create one for you.")
+        } else {
+            panel.showRoutineList(routines)
+        }
     }
 
     /// Saves the current conversation as a session.

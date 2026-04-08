@@ -279,6 +279,31 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Height constraint for the active skill view.
     var activeSkillHeightConstraint: NSLayoutConstraint?
 
+    // MARK: - Routines Mode
+
+    /// The routine list view shown when the Routines tab is active.
+    lazy var routineListView: RoutineListView = {
+        let v = RoutineListView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.onSelectRoutine = { [weak self] routine in
+            self?.onSelectRoutine?(routine)
+        }
+        v.onDeleteRoutine = { [weak self] routine in
+            self?.onDeleteRoutine?(routine)
+        }
+        v.onRunRoutine = { [weak self] routine in
+            self?.onRunRoutine?(routine)
+        }
+        return v
+    }()
+
+    /// Height constraint for the routine list.
+    var routineListHeightConstraint: NSLayoutConstraint?
+
+    /// Whether the panel is currently in Routines mode (Routines tab selected).
+    var isRoutinesMode = false
+
     /// The currently active tool (when drilled in).
     var activeTool: PanelTool?
 
@@ -343,6 +368,18 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Called when the input field text changes while in Skills mode.
     var onSkillSearchChanged: ((String) -> Void)?
+
+    /// Called when the user selects a routine from the routine list.
+    var onSelectRoutine: ((ScheduledJob) -> Void)?
+
+    /// Called when the user deletes a routine from the routine list.
+    var onDeleteRoutine: ((ScheduledJob) -> Void)?
+
+    /// Called when the user runs a routine manually from the routine list.
+    var onRunRoutine: ((ScheduledJob) -> Void)?
+
+    /// Called when the input field text changes while in Routines mode.
+    var onRoutineSearchChanged: ((String) -> Void)?
 
     // MARK: - UI Components
 
@@ -540,14 +577,15 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         toolIndicatorBottomConstraint.isActive = true
         toolIndicatorBottomSpacerConstraint = toolIndicatorBottomConstraint
 
-        // Add divider + tab bar + session list + tool list + task list + skill list + response to stack, keep them
-        // hidden
+        // Add divider + tab bar + session list + tool list + task list + skill list + routine list + response to
+        // stack, keep them hidden
         mainStack.addArrangedSubview(dividerContainer)
         mainStack.addArrangedSubview(tabBarContainer)
         mainStack.addArrangedSubview(sessionListView)
         mainStack.addArrangedSubview(toolListView)
         mainStack.addArrangedSubview(taskListView)
         mainStack.addArrangedSubview(skillListView)
+        mainStack.addArrangedSubview(routineListView)
         mainStack.addArrangedSubview(responseScrollView)
 
         let sessionHeight = sessionListView.heightAnchor.constraint(equalToConstant: 0)
@@ -565,6 +603,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         let skillListHeight = skillListView.heightAnchor.constraint(equalToConstant: 0)
         skillListHeight.isActive = true
         skillListHeightConstraint = skillListHeight
+
+        let routineListHeight = routineListView.heightAnchor.constraint(equalToConstant: 0)
+        routineListHeight.isActive = true
+        routineListHeightConstraint = routineListHeight
 
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true

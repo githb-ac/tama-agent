@@ -79,11 +79,13 @@ extension FloatingPanel {
         // Set the text storage
         responseTextView.textStorage?.setAttributedString(conversationAttributed)
 
-        // Hide session list and tool list, show response area (keep tab bar visible for navigation)
+        // Hide session list, tool list, routine list, show response area (keep tab bar visible for navigation)
         sessionListView.isHidden = true
         sessionListHeightConstraint?.constant = 0
         toolListView.isHidden = true
         toolListHeightConstraint?.constant = 0
+        routineListView.isHidden = true
+        routineListHeightConstraint?.constant = 0
         dividerContainer.isHidden = false
         responseScrollView.isHidden = false
         dividerContainer.alphaValue = 1
