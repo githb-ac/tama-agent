@@ -10,6 +10,21 @@ private let logger = Logger(
     category: "permissions"
 )
 
+// MARK: - Authorization Status Helpers
+
+extension UNAuthorizationStatus {
+    var description: String {
+        switch self {
+        case .notDetermined: "not determined"
+        case .denied: "denied"
+        case .authorized: "authorized"
+        case .provisional: "provisional"
+        case .ephemeral: "ephemeral"
+        @unknown default: "unknown (\(rawValue))"
+        }
+    }
+}
+
 // MARK: - Non-isolated permission request helpers
 
 /// These free functions live outside the @MainActor class so their closures
@@ -44,6 +59,14 @@ final class PermissionsChecker {
     static let shared = PermissionsChecker()
     private init() {}
 
+    // Cached permission states to reduce log spam
+    private var lastAccessibilityState: Bool?
+    private var lastFullDiskState: Bool?
+    private var lastMicrophoneState: Bool?
+    private var lastSpeechState: Bool?
+    private var lastAppManagementState: Bool?
+    private var lastNotificationsState: UNAuthorizationStatus?
+
     // MARK: - Accessibility
 
     /// The AXTrustedCheckOptionPrompt key, extracted once to avoid Swift 6 concurrency warnings
@@ -59,7 +82,10 @@ final class PermissionsChecker {
             let options = [axTrustedPromptKey: false] as CFDictionary
             granted = AXIsProcessTrustedWithOptions(options)
         }
-        logger.info("Accessibility permission check: \(granted ? "granted" : "denied")")
+        if lastAccessibilityState != granted {
+            lastAccessibilityState = granted
+            logger.info("Accessibility permission: \(granted ? "granted" : "denied")")
+        }
         return granted
     }
 
@@ -78,7 +104,10 @@ final class PermissionsChecker {
 
     func isFullDiskAccessGranted() -> Bool {
         let granted = FileManager.default.isReadableFile(atPath: "/Library/Application Support/com.apple.TCC/TCC.db")
-        logger.info("Full Disk Access permission check: \(granted ? "granted" : "denied")")
+        if lastFullDiskState != granted {
+            lastFullDiskState = granted
+            logger.info("Full Disk Access permission: \(granted ? "granted" : "denied")")
+        }
         return granted
     }
 
@@ -92,7 +121,10 @@ final class PermissionsChecker {
     func isMicrophoneGranted() -> Bool {
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
         let granted = status == .authorized
-        logger.info("Microphone permission check: \(granted ? "granted" : "denied") (status: \(status.rawValue))")
+        if lastMicrophoneState != granted {
+            lastMicrophoneState = granted
+            logger.info("Microphone permission: \(granted ? "granted" : "denied") (status: \(status.rawValue))")
+        }
         return granted
     }
 
@@ -110,8 +142,10 @@ final class PermissionsChecker {
     func isSpeechRecognitionGranted() -> Bool {
         let status = SFSpeechRecognizer.authorizationStatus()
         let granted = status == .authorized
-        logger
-            .info("Speech recognition permission check: \(granted ? "granted" : "denied") (status: \(status.rawValue))")
+        if lastSpeechState != granted {
+            lastSpeechState = granted
+            logger.info("Speech recognition permission: \(granted ? "granted" : "denied") (status: \(status.rawValue))")
+        }
         return granted
     }
 
@@ -138,11 +172,17 @@ final class PermissionsChecker {
             )
             try Data().write(to: testFile)
             try FileManager.default.removeItem(at: testDir)
-            logger.info("App Management permission check: granted")
+            if lastAppManagementState != true {
+                lastAppManagementState = true
+                logger.info("App Management permission: granted")
+            }
             return true
         } catch {
             try? FileManager.default.removeItem(at: testDir)
-            logger.info("App Management permission check: denied (\(error.localizedDescription))")
+            if lastAppManagementState != false {
+                lastAppManagementState = false
+                logger.info("App Management permission: denied")
+            }
             return false
         }
     }
@@ -165,7 +205,10 @@ final class PermissionsChecker {
         }
 
         semaphore.wait()
-        logger.info("Notifications permission check: \(status.rawValue)")
+        if lastNotificationsState != status {
+            lastNotificationsState = status
+            logger.info("Notifications permission: \(status.description)")
+        }
         return status
     }
 

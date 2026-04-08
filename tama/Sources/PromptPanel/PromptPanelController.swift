@@ -121,8 +121,7 @@ final class PromptPanelController {
         conversationHistory = []
         panel?.present()
 
-        // Show recent sessions if any exist
-        SessionStore.shared.loadAll()
+        // Show recent sessions if any exist (already loaded from disk on init)
         let groups = SessionStore.shared.allSessionsGroupedByDate()
         if groups.isEmpty {
             panel?.showSessionList([], emptyMessage: "No conversations yet. Start chatting with Tama!")

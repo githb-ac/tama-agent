@@ -7,6 +7,32 @@ private let logger = Logger(
     category: "voice"
 )
 
+// MARK: - Authorization Status Helpers
+
+extension AVAuthorizationStatus {
+    var description: String {
+        switch self {
+        case .notDetermined: "not determined"
+        case .restricted: "restricted"
+        case .denied: "denied"
+        case .authorized: "authorized"
+        @unknown default: "unknown (\(rawValue))"
+        }
+    }
+}
+
+extension SFSpeechRecognizerAuthorizationStatus {
+    var description: String {
+        switch self {
+        case .notDetermined: "not determined"
+        case .denied: "denied"
+        case .restricted: "restricted"
+        case .authorized: "authorized"
+        @unknown default: "unknown (\(rawValue))"
+        }
+    }
+}
+
 /// Lightweight speech capture service for hold-to-talk.
 /// No wake word detection — just captures speech and returns the transcript.
 final class VoiceService: @unchecked Sendable {
@@ -65,6 +91,18 @@ final class VoiceService: @unchecked Sendable {
 
     /// Starts capturing speech for hold-to-talk or follow-up prompts.
     func startFollowUpCapture() {
+        // Check permissions before starting to avoid audio engine errors
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        guard micStatus == .authorized else {
+            logger.warning("Cannot start speech capture — microphone permission: \(micStatus.description)")
+            return
+        }
+        let speechStatus = SFSpeechRecognizer.authorizationStatus()
+        guard speechStatus == .authorized else {
+            logger.warning("Cannot start speech capture — speech recognition permission: \(speechStatus.description)")
+            return
+        }
+
         logger.info("Starting speech capture")
         generation += 1
         haltPipeline()

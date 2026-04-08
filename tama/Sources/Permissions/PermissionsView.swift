@@ -162,7 +162,7 @@ struct PermissionsView: View {
             }
         }
 
-        permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
             MainActor.assumeIsolated {
                 refreshStatuses()
             }
