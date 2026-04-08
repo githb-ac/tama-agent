@@ -61,8 +61,8 @@ jobs:
 
       - name: Build app
         run: |
-          xcodebuild -project Tamagotchai.xcodeproj \
-            -scheme Tamagotchai \
+          xcodebuild -project Tama.xcodeproj \
+            -scheme Tama \
             -configuration Release \
             -arch arm64 \
             -derivedDataPath build \
@@ -74,7 +74,7 @@ jobs:
 
       - name: Deep sign all nested code
         run: |
-          APP_PATH="build/Build/Products/Release/Tamagotchai.app"
+          APP_PATH="build/Build/Products/Release/Tama.app"
 
           # Re-sign all nested frameworks and dylibs with hardened runtime
           find "$APP_PATH" -type f -perm +111 -o -name "*.dylib" -o -name "*.framework" | while read -r binary; do
@@ -103,12 +103,12 @@ jobs:
 
       - name: Notarize app
         run: |
-          APP_PATH="build/Build/Products/Release/Tamagotchai.app"
+          APP_PATH="build/Build/Products/Release/Tama.app"
 
-          ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/Tamagotchai.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/Tama.zip"
 
           # Submit and capture the submission ID
-          SUBMIT_OUTPUT=$(xcrun notarytool submit "$RUNNER_TEMP/Tamagotchai.zip" \
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$RUNNER_TEMP/Tama.zip" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$NOTARIZE_PASSWORD" \
@@ -133,37 +133,37 @@ jobs:
 
       - name: Create DMG
         run: |
-          APP_PATH="build/Build/Products/Release/Tamagotchai.app"
+          APP_PATH="build/Build/Products/Release/Tama.app"
 
           create-dmg \
-            --volname "Tamagotchai" \
+            --volname "Tama" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "Tamagotchai.app" 150 190 \
+            --icon "Tama.app" 150 190 \
             --app-drop-link 450 190 \
             --no-internet-enable \
-            "Tamagotchai-${GITHUB_REF_NAME}.dmg" \
+            "Tama-${GITHUB_REF_NAME}.dmg" \
             "$APP_PATH" || true
 
-          if [ ! -f "Tamagotchai-${GITHUB_REF_NAME}.dmg" ]; then
+          if [ ! -f "Tama-${GITHUB_REF_NAME}.dmg" ]; then
             echo "DMG creation failed"
             exit 1
           fi
 
           # Notarize the DMG
-          xcrun notarytool submit "Tamagotchai-${GITHUB_REF_NAME}.dmg" \
+          xcrun notarytool submit "Tama-${GITHUB_REF_NAME}.dmg" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$NOTARIZE_PASSWORD" \
             --wait --timeout 15m
 
-          xcrun stapler staple "Tamagotchai-${GITHUB_REF_NAME}.dmg"
+          xcrun stapler staple "Tama-${GITHUB_REF_NAME}.dmg"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Tamagotchai-*.dmg
+          files: Tama-*.dmg
           generate_release_notes: true
           draft: false
           prerelease: false
