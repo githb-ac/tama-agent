@@ -106,8 +106,8 @@ struct PermissionsView: View {
                         let status = checker.notificationsStatus()
                         if status == .notDetermined {
                             // First time - request authorization (shows system dialog)
-                            checker.requestNotifications { _ in
-                                refreshStatuses()
+                            checker.requestNotifications { newStatus in
+                                notificationsGranted = newStatus == .authorized
                             }
                         } else {
                             // Already decided - open system settings

@@ -173,14 +173,15 @@ final class PermissionsChecker {
         notificationsStatus() == .authorized
     }
 
-    func requestNotifications(completion: (@MainActor (Bool) -> Void)? = nil) {
+    func requestNotifications(completion: (@MainActor (UNAuthorizationStatus) -> Void)? = nil) {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             DispatchQueue.main.async {
                 if let error {
                     logger.error("Notifications permission error: \(error.localizedDescription)")
                 }
+                let status: UNAuthorizationStatus = granted ? .authorized : .denied
                 logger.info("Notifications permission response: \(granted ? "granted" : "denied")")
-                completion?(granted)
+                completion?(status)
             }
         }
     }

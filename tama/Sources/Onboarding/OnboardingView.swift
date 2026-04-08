@@ -252,8 +252,8 @@ struct OnboardingView: View {
                     let status = PermissionsChecker.shared.notificationsStatus()
                     if status == .notDetermined {
                         // First time - request authorization (shows system dialog)
-                        PermissionsChecker.shared.requestNotifications { _ in
-                            refreshPermissions()
+                        PermissionsChecker.shared.requestNotifications { newStatus in
+                            notificationsGranted = newStatus == .authorized
                         }
                     } else {
                         // Already decided - open system settings
