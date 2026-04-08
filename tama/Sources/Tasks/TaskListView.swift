@@ -18,8 +18,12 @@ final class TaskListView: NSView {
         sv.translatesAutoresizingMaskIntoConstraints = false
         sv.scrollerStyle = .overlay
         sv.verticalScrollElasticity = .none
+        sv.contentView.postsBoundsChangedNotifications = true
         return sv
     }()
+
+    /// Scroll notification observer for updating hover states during scrolling.
+    private var scrollObserver: NSObjectProtocol?
 
     private lazy var contentStack: NSStackView = {
         let stack = NSStackView()
@@ -43,9 +47,28 @@ final class TaskListView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Updates hover states on all row views after scrolling.
+    private func updateHoverStatesAfterScroll() {
+        let mouseLocation = window?.mouseLocationOutsideOfEventStream ?? .zero
+        for case let row as TaskListRowView in contentStack.arrangedSubviews {
+            let rowLocation = row.convert(mouseLocation, from: nil)
+            let isActuallyHovered = row.bounds.contains(rowLocation)
+            row.updateHoverState(isHovered: isActuallyHovered)
+        }
+    }
+
     private func setup() {
         translatesAutoresizingMaskIntoConstraints = false
         addSubview(scrollView)
+
+        // Listen for scroll to update hover states (mouse stays still while content moves)
+        scrollObserver = NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updateHoverStatesAfterScroll()
+        }
 
         let docView = TaskFlippedDocumentView()
         docView.translatesAutoresizingMaskIntoConstraints = false
@@ -311,6 +334,15 @@ private final class TaskListRowView: NSView {
         highlightLayer.isHidden = true
         deleteButton.isHidden = true
         timeLabel.isHidden = false
+    }
+
+    /// Updates the hover state programmatically (used during scrolling).
+    func updateHoverState(isHovered: Bool) {
+        guard self.isHovered != isHovered else { return }
+        self.isHovered = isHovered
+        highlightLayer.isHidden = !isHovered
+        timeLabel.isHidden = isHovered
+        deleteButton.isHidden = !isHovered
     }
 
     override func mouseDown(with event: NSEvent) {

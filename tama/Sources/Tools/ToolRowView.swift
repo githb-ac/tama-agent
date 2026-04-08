@@ -138,6 +138,13 @@ final class ToolRowView: NSView {
         highlightLayer.isHidden = true
     }
 
+    /// Updates the hover state programmatically (used during scrolling).
+    func updateHoverState(isHovered: Bool) {
+        guard self.isHovered != isHovered else { return }
+        self.isHovered = isHovered
+        highlightLayer.isHidden = !isHovered
+    }
+
     override func mouseDown(with event: NSEvent) {
         // For toggle tools, clicking the row toggles
         if toggleTool != nil {
