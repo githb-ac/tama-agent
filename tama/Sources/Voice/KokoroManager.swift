@@ -129,19 +129,20 @@ final class KokoroManager: ObservableObject {
         logger.info("Migrating Kokoro files from \(oldPath.path) to \(newPath.path)")
 
         do {
-            // Create parent directory if needed
+            // Create directories if needed
             try FileManager.default.createDirectory(at: newPath, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: modelDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: voicesDir, withIntermediateDirectories: true)
 
             // Migrate model directory
             let oldModelDir = oldPath.appendingPathComponent("model")
-            let newModelDir = modelDir
             if FileManager.default.fileExists(atPath: oldModelDir.path) {
                 let modelFiles = try FileManager.default.contentsOfDirectory(
                     at: oldModelDir,
                     includingPropertiesForKeys: nil
                 )
                 for file in modelFiles {
-                    let dest = newModelDir.appendingPathComponent(file.lastPathComponent)
+                    let dest = modelDir.appendingPathComponent(file.lastPathComponent)
                     try FileManager.default.moveItem(at: file, to: dest)
                     logger.info("Migrated model file: \(file.lastPathComponent)")
                 }
@@ -149,14 +150,13 @@ final class KokoroManager: ObservableObject {
 
             // Migrate voices directory
             let oldVoicesDir = oldPath.appendingPathComponent("voices")
-            let newVoicesDir = voicesDir
             if FileManager.default.fileExists(atPath: oldVoicesDir.path) {
                 let voiceFiles = try FileManager.default.contentsOfDirectory(
                     at: oldVoicesDir,
                     includingPropertiesForKeys: nil
                 )
                 for file in voiceFiles {
-                    let dest = newVoicesDir.appendingPathComponent(file.lastPathComponent)
+                    let dest = voicesDir.appendingPathComponent(file.lastPathComponent)
                     try FileManager.default.moveItem(at: file, to: dest)
                     logger.info("Migrated voice file: \(file.lastPathComponent)")
                 }
