@@ -106,12 +106,16 @@ final class ClaudeService {
             ? "\(sign)\(h)"
             : String(format: "%@%d:%02d", sign, h, m)
 
+        let skillsContext = SkillStore.shared.formatForPrompt()
+
         return """
         [current context]
         date: \(dateStr)
         time: \(timeStr)
         timezone: \(tz.identifier) (UTC\(offsetString))
         platform: macOS
+
+        \(skillsContext)
         """
     }
 

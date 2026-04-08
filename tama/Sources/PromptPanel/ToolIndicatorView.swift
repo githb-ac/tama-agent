@@ -141,6 +141,9 @@ final class ToolIndicatorView: NSView {
             return name.isEmpty ? "Removing schedule…" : "Removing  \(name)"
         case "task":
             return "Managing tasks…"
+        case "skill":
+            let skillName = compact(args["skill"], max: 28)
+            return skillName.isEmpty ? "Using skill…" : "Skill  \(skillName)"
         default:
             return "Working…"
         }
