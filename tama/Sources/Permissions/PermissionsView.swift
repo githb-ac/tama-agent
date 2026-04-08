@@ -10,6 +10,7 @@ struct PermissionsView: View {
     @State private var appManagementGranted = false
     @State private var notificationsGranted = false
     @State private var permissionPollTimer: Timer?
+    @State private var axObserver: NSObjectProtocol?
 
     @ObservedObject private var chromium = ChromiumManager.shared
     private let checker = PermissionsChecker.shared
@@ -147,6 +148,20 @@ struct PermissionsView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             refreshStatuses()
         }
+
+        // Listen for accessibility changes via system notification (instant detection).
+        // This is an undocumented but widely-used notification from HIServices.framework.
+        axObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.apple.accessibility.api"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            // The notification fires before AXIsProcessTrusted updates; delay briefly.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                refreshStatuses()
+            }
+        }
+
         permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             MainActor.assumeIsolated {
                 refreshStatuses()
@@ -157,6 +172,10 @@ struct PermissionsView: View {
     private func stopPermissionPolling() {
         permissionPollTimer?.invalidate()
         permissionPollTimer = nil
+        if let axObserver {
+            DistributedNotificationCenter.default().removeObserver(axObserver)
+        }
+        axObserver = nil
     }
 
     private var hasBrowser: Bool {
