@@ -761,16 +761,12 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         doCommandBy commandSelector: Selector
     ) -> Bool {
         if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-            // In tools mode, Return does nothing (filtering is live)
-            if isToolsMode, !isInsideTool { return true }
-            // In tasks mode (list view), Return does nothing (filtering is live)
-            if isTasksMode, !isInsideTaskDetail { return true }
-            // In skills mode (list view), Return does nothing (filtering is live)
+            // Non-chat tabs: Return does nothing (filtering is live)
+            if isToolsMode { return true }
+            if isTasksMode { return true }
             if isSkillsMode { return true }
-            // In session search mode (reminders/routines list), Return does nothing
+            if isRoutinesMode { return true }
             if isSessionSearchMode { return true }
-            // Inside a tool, Return is consumed (tool handles its own interaction)
-            if isInsideTool { return true }
 
             let text = inputField.stringValue.trimmingCharacters(
                 in: .whitespacesAndNewlines

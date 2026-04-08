@@ -186,22 +186,61 @@ extension FloatingPanel {
 
     // MARK: - Text change tracking
 
+    private func restoreInputText(_ text: String) {
+        inputField.stringValue = text
+        // Position cursor at end to prevent text replacement on next keystroke
+        if let editor = inputField.currentEditor() {
+            editor.selectedRange = NSRange(location: (text as NSString).length, length: 0)
+        }
+    }
+
     func controlTextDidChange(_: Notification) {
         let text = inputField.stringValue
         if isToolsMode {
             if isInsideTool {
-                activeTool?.filterContent(query: text)
+                // Pop back to tool list and filter (preserve text)
+                popToolView()
+                restoreInputText(text)
+                onToolSearchChanged?(text)
             } else {
                 onToolSearchChanged?(text)
             }
-        } else if isTasksMode, !isInsideTaskDetail {
-            onTaskSearchChanged?(text)
-        } else if isSkillsMode, !isInsideSkill {
-            onSkillSearchChanged?(text)
+        } else if isTasksMode {
+            if isInsideTaskDetail {
+                // Pop back to task list and filter (preserve text)
+                popTaskDetail()
+                restoreInputText(text)
+                onTaskSearchChanged?(text)
+            } else {
+                onTaskSearchChanged?(text)
+            }
+        } else if isSkillsMode {
+            if isInsideSkill {
+                // Pop back to skill list and filter (preserve text)
+                popSkillView()
+                restoreInputText(text)
+                onSkillSearchChanged?(text)
+            } else {
+                onSkillSearchChanged?(text)
+            }
         } else if isRoutinesMode {
-            onRoutineSearchChanged?(text)
+            if isInsideSession {
+                // Pop back to routine list and filter (preserve text)
+                onBackToList?()
+                restoreInputText(text)
+                onRoutineSearchChanged?(text)
+            } else {
+                onRoutineSearchChanged?(text)
+            }
         } else if isSessionSearchMode {
-            onSessionSearchChanged?(text)
+            if isInsideSession {
+                // Pop back to session list and filter (preserve text)
+                onBackToList?()
+                restoreInputText(text)
+                onSessionSearchChanged?(text)
+            } else {
+                onSessionSearchChanged?(text)
+            }
         } else {
             onTextChanged?(text)
         }
@@ -692,7 +731,7 @@ extension FloatingPanel {
     /// Pushes a skill's content view, replacing the skill list.
     func pushSkillView(skill: Skill) {
         isInsideSkill = true
-        inputField.placeholderString = "Ask anything..."
+        inputField.placeholderString = "Search skills..."
         inputField.stringValue = ""
 
         // Hide the skill list
