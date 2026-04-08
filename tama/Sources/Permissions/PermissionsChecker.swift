@@ -154,18 +154,23 @@ final class PermissionsChecker {
 
     // MARK: - Notifications
 
-    func isNotificationsGranted() -> Bool {
+    /// Returns the current notification authorization status.
+    func notificationsStatus() -> UNAuthorizationStatus {
         let semaphore = DispatchSemaphore(value: 0)
-        var granted = false
+        var status: UNAuthorizationStatus = .notDetermined
 
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            granted = settings.authorizationStatus == .authorized
+            status = settings.authorizationStatus
             semaphore.signal()
         }
 
         semaphore.wait()
-        logger.info("Notifications permission check: \(granted ? "granted" : "denied")")
-        return granted
+        logger.info("Notifications permission check: \(status.rawValue)")
+        return status
+    }
+
+    func isNotificationsGranted() -> Bool {
+        notificationsStatus() == .authorized
     }
 
     func requestNotifications(completion: (@MainActor (Bool) -> Void)? = nil) {

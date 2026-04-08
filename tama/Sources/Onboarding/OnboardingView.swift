@@ -249,13 +249,16 @@ struct OnboardingView: View {
                     description: "Reminders and routine alerts",
                     granted: notificationsGranted
                 ) {
-                    if notificationsGranted {
-                        OnboardingController.yieldToSystemUI()
-                        PermissionsChecker.shared.openNotificationsSettings()
-                    } else {
+                    let status = PermissionsChecker.shared.notificationsStatus()
+                    if status == .notDetermined {
+                        // First time - request authorization (shows system dialog)
                         PermissionsChecker.shared.requestNotifications { _ in
                             refreshPermissions()
                         }
+                    } else {
+                        // Already decided - open system settings
+                        OnboardingController.yieldToSystemUI()
+                        PermissionsChecker.shared.openNotificationsSettings()
                     }
                 }
 

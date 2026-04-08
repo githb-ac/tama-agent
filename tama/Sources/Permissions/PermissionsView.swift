@@ -103,12 +103,15 @@ struct PermissionsView: View {
                     description: "Required for reminders and routine alerts.",
                     granted: notificationsGranted,
                     action: {
-                        if notificationsGranted {
-                            checker.openNotificationsSettings()
-                        } else {
+                        let status = checker.notificationsStatus()
+                        if status == .notDetermined {
+                            // First time - request authorization (shows system dialog)
                             checker.requestNotifications { _ in
                                 refreshStatuses()
                             }
+                        } else {
+                            // Already decided - open system settings
+                            checker.openNotificationsSettings()
                         }
                     }
                 )
