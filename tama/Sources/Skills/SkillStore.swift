@@ -174,8 +174,8 @@ final class SkillStore {
         let timer = DispatchSource.makeTimerSource(queue: queue)
 
         timer.setEventHandler { [weak self] in
-            guard let self else { return }
             DispatchQueue.main.async {
+                guard let self else { return }
                 self.checkForChanges()
             }
         }
