@@ -110,6 +110,7 @@ final class PromptPanelController {
         SpeechService.shared.stop()
         VoiceService.shared.stopFollowUpCapture()
         panel?.hideToolIndicator()
+        panel?.hideThinkingIndicator()
         MenuBarMood.shared.setActivity(nil)
 
         isDismissedByAgent = false
@@ -144,6 +145,7 @@ final class PromptPanelController {
         VoiceService.shared.stopFollowUpCapture()
         BrowserManager.shared.disconnect()
         panel?.hideToolIndicator()
+        panel?.hideThinkingIndicator()
         MenuBarMood.shared.setActivity(nil)
         if clearHistory {
             conversationHistory.removeAll()
@@ -247,6 +249,7 @@ final class PromptPanelController {
             SpeechService.shared.stop()
             VoiceService.shared.stopFollowUpCapture()
             panel?.hideToolIndicator()
+            panel?.hideThinkingIndicator()
             isVoiceMode = false
 
             // Schedule TTS engine unload after delay to free memory
@@ -471,6 +474,9 @@ final class PromptPanelController {
         // Hide session list if visible
         panel?.hideSessionList()
 
+        // Show generating indicator immediately
+        panel?.showGeneratingIndicator()
+
         panel?.mascot.setState(.waiting)
         MenuBarMood.shared.setActivity(.thinking)
 
@@ -620,6 +626,7 @@ final class PromptPanelController {
                 conversationHistory.removeSubrange(historyCountBeforeSubmit...)
             }
             panel.hideToolIndicator()
+            panel.hideThinkingIndicator()
             MenuBarMood.shared.setActivity(.error)
             let appError = AppError.from(error)
             panel.showError(

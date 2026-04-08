@@ -127,13 +127,16 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         return w
     }()
 
-    /// Tool activity indicator shown during tool execution.
+    /// Tool activity indicator shown during tool execution, thinking, and generating.
     lazy var toolIndicatorView: ToolIndicatorView = {
         let v = ToolIndicatorView()
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
         return v
     }()
+
+    /// Constraint for bottom spacer that pushes content above tool indicator
+    private var toolIndicatorBottomSpacerConstraint: NSLayoutConstraint?
 
     /// Skeleton shimmer view shown while waiting for first token.
     lazy var skeletonView: SkeletonView = {
@@ -488,6 +491,15 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             mainStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor),
         ])
 
+        // Add bottom constraint to mainStack that accounts for tool indicator
+        let toolIndicatorBottomConstraint = mainStack.bottomAnchor.constraint(
+            equalTo: container.bottomAnchor,
+            constant: -16
+        )
+        toolIndicatorBottomConstraint.priority = .defaultLow // Allow compression
+        toolIndicatorBottomConstraint.isActive = true
+        toolIndicatorBottomSpacerConstraint = toolIndicatorBottomConstraint
+
         // Add divider + tab bar + session list + tool list + response to stack, keep them hidden
         mainStack.addArrangedSubview(dividerContainer)
         mainStack.addArrangedSubview(tabBarContainer)
@@ -535,13 +547,15 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         container.addSubview(toolIndicatorView)
         NSLayoutConstraint.activate([
             toolIndicatorView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
-            toolIndicatorView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+            toolIndicatorView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
+            toolIndicatorView.heightAnchor.constraint(equalToConstant: 30),
+            toolIndicatorView.widthAnchor.constraint(equalToConstant: 130),
         ])
     }
 
     /// Extra bottom content inset added when the tool indicator is visible
     /// so the streaming cursor / last line is never hidden behind the floating pill.
-    private let toolIndicatorBottomInset: CGFloat = 36
+    private let toolIndicatorBottomInset: CGFloat = 200
 
     /// The intrinsic height of the tab bar container (top padding + control + bottom padding).
     let tabBarHeight: CGFloat = 44
@@ -554,14 +568,28 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     // MARK: - Tool Indicator
 
+    /// Text padding with space for tool indicator (50pt bottom).
+    private let textInsetWithIndicator = NSSize(width: 20, height: 50)
+
     func showToolIndicator(name: String, args: [String: String] = [:]) {
+        hideThinkingIndicator()
         toolIndicatorView.show(toolName: name, args: args)
-        responseScrollView.contentInsets.bottom = toolIndicatorBottomInset
     }
 
     func hideToolIndicator() {
         toolIndicatorView.hide()
-        responseScrollView.contentInsets.bottom = 0
+    }
+
+    // MARK: - Generating Indicator
+
+    /// Shows the "Generating" indicator while streaming text.
+    func showGeneratingIndicator() {
+        toolIndicatorView.showGenerating()
+    }
+
+    /// Hides the generating indicator.
+    func hideThinkingIndicator() {
+        toolIndicatorView.hideThinking()
     }
 
     // MARK: - Dismiss on Escape

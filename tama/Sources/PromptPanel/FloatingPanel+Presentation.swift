@@ -16,6 +16,9 @@ extension FloatingPanel {
         // Re-enable adaptive color mapping (may have been disabled by showError)
         responseTextView.usesAdaptiveColorMappingForDarkAppearance = true
 
+        // Set permanent bottom padding for tool indicator space
+        responseTextView.textContainerInset = NSSize(width: 20, height: 50)
+
         // Reset streaming/conversation state
         rawMarkdown = ""
         pendingMarkdown = ""
@@ -268,7 +271,7 @@ extension FloatingPanel {
         skeletonView.isHidden = true
         toolIndicatorView.isHidden = true
         toolIndicatorView.alphaValue = 0
-        responseScrollView.contentInsets.bottom = 0
+        responseTextView.textContainerInset = NSSize(width: 20, height: 50)
         responseTextView.textStorage?.setAttributedString(NSAttributedString())
         responseTextView.removeAllCopyButtons()
         dividerContainer.isHidden = true

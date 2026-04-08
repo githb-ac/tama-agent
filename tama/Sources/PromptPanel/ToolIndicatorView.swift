@@ -3,6 +3,7 @@ import AppKit
 /// A small glassmorphism pill that shows which tool is currently running.
 final class ToolIndicatorView: NSView {
     private let pillRadius: CGFloat = 12
+    private var isGenerating = false
 
     private let vibrancy: NSVisualEffectView = {
         let v = NSVisualEffectView()
@@ -180,6 +181,7 @@ final class ToolIndicatorView: NSView {
     }
 
     func show(toolName: String, args: [String: String] = [:]) {
+        isGenerating = false // No longer generating when tool starts
         let displayText = Self.displayName(for: toolName, args: args)
         spinner.startAnimation(nil)
         isHidden = false
@@ -192,15 +194,44 @@ final class ToolIndicatorView: NSView {
         }
     }
 
-    func hide() {
+    @discardableResult
+    func hide() -> Bool {
+        // Don't hide if in generating mode
+        if isGenerating { return false }
+
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.2
             self.animator().alphaValue = 0
         } completionHandler: {
             MainActor.assumeIsolated { [weak self] in
-                self?.isHidden = true
-                self?.spinner.stopAnimation(nil)
+                // Don't hide if we started generating while animating
+                guard let self, !self.isGenerating else { return }
+                isHidden = true
+                spinner.stopAnimation(nil)
             }
         }
+        return true
+    }
+
+    /// Shows the "Generating" indicator.
+    func showGenerating() {
+        isGenerating = true
+        label.stringValue = "Generating"
+        spinner.startAnimation(nil)
+        isHidden = false
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            ctx.allowsImplicitAnimation = true
+            self.animator().alphaValue = 1
+        }
+    }
+
+    /// Hides the generating indicator.
+    func hideThinking() {
+        isGenerating = false
+        spinner.stopAnimation(nil)
+        alphaValue = 0
+        isHidden = true
     }
 }

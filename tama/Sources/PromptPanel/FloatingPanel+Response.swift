@@ -164,6 +164,9 @@ extension FloatingPanel {
         // Re-enable adaptive color mapping (may have been disabled by showError)
         responseTextView.usesAdaptiveColorMappingForDarkAppearance = true
 
+        // Set permanent bottom padding for tool indicator space (no resize on hide)
+        responseTextView.textContainerInset = NSSize(width: 20, height: 50)
+
         // Build user bubble attributed string before appending
         let userBubble = userText.isEmpty ? nil : makeUserBubble(userText)
 
@@ -292,6 +295,7 @@ extension FloatingPanel {
 
             if !receivedFirst {
                 receivedFirst = true
+
                 // Hide skeleton if it was shown
                 if !skeletonView.isHidden {
                     skeletonView.stopAnimating()
@@ -319,10 +323,11 @@ extension FloatingPanel {
             "streamFinished=true queueEmpty=\(qEmpty) receivedFirst=\(receivedFirst) typingFinished=\(tFinished)"
         )
 
-        // If we never received any text, clean up skeleton
+        // If we never received any text, clean up
         if !receivedFirst {
             skeletonView.stopAnimating()
             skeletonView.isHidden = true
+            hideThinkingIndicator()
         }
 
         // Safety: if the character queue already drained before streamFinished
@@ -529,6 +534,7 @@ extension FloatingPanel {
         panelLogger.debug("finishTyping executing — stopping cursor")
         stopDisplayLink()
         stopCursorBlink()
+        hideThinkingIndicator()
         // Strip any cursor glyph that may have leaked into pendingMarkdown
         let cleanMarkdown = pendingMarkdown
             .replacingOccurrences(of: Self.streamingCursorGlyph, with: "")
