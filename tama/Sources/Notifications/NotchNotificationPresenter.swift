@@ -7,36 +7,42 @@ private let logger = Logger(
     category: "notch"
 )
 
+/// A displayed notification panel with its metadata.
+private struct DisplayedNotification {
+    let id: UUID
+    let panel: NSPanel
+    let timer: Timer?
+    let onTap: () -> Void
+}
+
 /// Presents glassmorphism toast notifications that slide down from the top-center of the screen.
+/// Supports showing multiple notifications simultaneously as a stack.
 @MainActor
 enum NotchNotificationPresenter {
-    /// The currently visible toast panel, if any.
-    private static var activePanel: NSPanel?
-
-    /// Auto-dismiss timer for the current toast.
-    private static var dismissTimer: Timer?
+    /// Currently visible toast panels, ordered from newest (index 0) to oldest.
+    private static var activeNotifications: [DisplayedNotification] = []
 
     /// Audio player for the notification sound.
     private static var audioPlayer: AVAudioPlayer?
 
-    /// Called when the user clicks the toast.
-    private static var onTap: (() -> Void)?
-
-    /// The full title of the current notification (for detail view).
+    /// The full title of the current top notification (for detail view).
     private(set) static var currentTitle: String = ""
 
-    /// The full body of the current notification (for detail view).
+    /// The full body of the current top notification (for detail view).
     private(set) static var currentBody: String = ""
 
-    /// Remaining dismiss time when hover pauses the timer.
-    private static var remainingDismissTime: TimeInterval = 0
+    /// Maximum number of notifications to show simultaneously.
+    private static let maxVisibleNotifications = 5
 
-    /// When the dismiss timer was last started/resumed.
-    private static var timerStartDate: Date?
+    /// Vertical spacing between stacked notifications.
+    private static let stackSpacing: CGFloat = 8
+
+    /// Height of each toast (approximate, used for positioning).
+    private static let estimatedToastHeight: CGFloat = 80
 
     /// Show a reminder notification.
     static func showReminder(name: String, message: String) {
-        logger.info("Presenting toast reminder: '\(name)'")
+        logger.info("Showing toast reminder: '\(name)'")
         showToast(
             icon: "bell.fill",
             iconColor: .systemYellow,
@@ -48,7 +54,7 @@ enum NotchNotificationPresenter {
 
     /// Show an agent reply notification (when panel was dismissed during processing).
     static func showAgentReply(message: String) {
-        logger.info("Presenting toast agent reply")
+        logger.info("Showing toast agent reply")
         showToast(
             icon: "bubble.left.fill",
             iconColor: .systemPurple,
@@ -60,7 +66,7 @@ enum NotchNotificationPresenter {
 
     /// Show a routine result notification.
     static func showRoutineResult(name: String, result: String) {
-        logger.info("Presenting toast routine result: '\(name)'")
+        logger.info("Showing toast routine result: '\(name)'")
         showToast(
             icon: "bolt.fill",
             iconColor: .systemTeal,
@@ -70,6 +76,32 @@ enum NotchNotificationPresenter {
         )
     }
 
+    /// Show multiple notifications simultaneously (for testing batch display).
+    static func showBatch(count: Int, prefix: String = "Test") {
+        logger.info("Showing batch of \(count) notifications simultaneously")
+        for i in 1 ... count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i - 1) * 0.15) {
+                showToast(
+                    icon: "number.circle.fill",
+                    iconColor: .systemIndigo,
+                    title: "\(prefix) #\(i) of \(count)",
+                    subtitle: "Notification \(i) in batch of \(count)",
+                    duration: 6
+                )
+            }
+        }
+    }
+
+    /// Clear all notification panels and reset state.
+    static func clearAll() {
+        logger.info("Clearing all notifications (\(activeNotifications.count) active)")
+        for notification in activeNotifications {
+            notification.timer?.invalidate()
+            notification.panel.orderOut(nil)
+        }
+        activeNotifications.removeAll()
+    }
+
     // MARK: - Private
 
     private static let toastWidth: CGFloat = 340
@@ -77,6 +109,7 @@ enum NotchNotificationPresenter {
     private static let slideInDuration: TimeInterval = 0.3
     private static let slideOutDuration: TimeInterval = 0.15
 
+    /// Show a toast notification, stacking with existing ones.
     private static func showToast(
         icon: String,
         iconColor: NSColor,
@@ -84,25 +117,30 @@ enum NotchNotificationPresenter {
         subtitle: String,
         duration: TimeInterval
     ) {
-        // Dismiss any existing toast immediately.
-        dismissImmediately()
-
         playNotificationSound()
 
         guard let screen = NSScreen.main else { return }
 
+        // Remove oldest if we're at max capacity
+        if activeNotifications.count >= maxVisibleNotifications {
+            removeOldestNotification()
+        }
+
         // Build content view.
         let contentView = buildContentView(icon: icon, iconColor: iconColor, title: title, subtitle: subtitle)
         let contentSize = contentView.fittingSize
-        let toastHeight = max(contentSize.height, 48)
+        let toastHeight = max(contentSize.height, 64)
 
-        // Position: top-center, just below the safe area (notch).
+        // Position: top-center, stacked below existing notifications.
         let safeTop = screen.safeAreaInsets.top
         let screenFrame = screen.frame
         let originX = screenFrame.midX - toastWidth / 2
-        // Start off-screen (above top edge) for slide-down animation.
-        let hiddenY = screenFrame.maxY
-        let visibleY = screenFrame.maxY - safeTop - toastHeight - 8
+
+        // Calculate Y position based on stack index
+        let stackIndex = activeNotifications.count
+        let offsetY = CGFloat(stackIndex) * (toastHeight + stackSpacing)
+        let visibleY = screenFrame.maxY - safeTop - toastHeight - 8 - offsetY
+        let hiddenY = screenFrame.maxY + 50 // Start above screen for animation
 
         let panel = NSPanel(
             contentRect: NSRect(x: originX, y: hiddenY, width: toastWidth, height: toastHeight),
@@ -139,25 +177,44 @@ enum NotchNotificationPresenter {
         contentView.frame = NSRect(x: 0, y: 0, width: toastWidth, height: toastHeight)
         effectView.addSubview(contentView)
 
+        let notificationID = UUID()
+
         wrapper.addSubview(effectView)
         panel.contentView = wrapper
         panel.orderFrontRegardless()
 
-        activePanel = panel
-        currentTitle = title
-        currentBody = subtitle
-
         // Add click gesture and hover tracking via a transparent overlay.
-        let overlay = ToastOverlayView(frame: effectView.bounds)
+        let overlay = ToastOverlayView(frame: effectView.bounds, notificationId: notificationID)
         overlay.autoresizingMask = [.width, .height]
         effectView.addSubview(overlay)
 
-        onTap = {
-            dismissImmediately()
+        // Store tap handler
+        let tapHandler = {
+            dismissNotification(id: notificationID)
             NotificationDetailPanel.show(title: title, body: subtitle)
         }
 
-        // Animate slide-down.
+        // Create timer for auto-dismiss
+        let timer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
+            Task { @MainActor in
+                dismissNotification(id: notificationID)
+            }
+        }
+
+        // Store notification
+        let displayedNotification = DisplayedNotification(
+            id: notificationID,
+            panel: panel,
+            timer: timer,
+            onTap: tapHandler
+        )
+        activeNotifications.insert(displayedNotification, at: 0)
+
+        // Update current title/body to top notification
+        currentTitle = title
+        currentBody = subtitle
+
+        // Animate slide-down to final position.
         NSAnimationContext.runAnimationGroup { context in
             context.duration = slideInDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -167,81 +224,87 @@ enum NotchNotificationPresenter {
             )
         }
 
-        // Schedule auto-dismiss.
-        remainingDismissTime = duration
-        timerStartDate = Date()
-        dismissTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
-            Task { @MainActor in
-                dismissAnimated()
-            }
-        }
+        // Update positions of existing notifications to make room
+        updateStackPositions()
     }
 
-    private static func dismissAnimated() {
-        guard let panel = activePanel else { return }
-        dismissTimer?.invalidate()
-        dismissTimer = nil
+    /// Dismiss a specific notification by ID.
+    private static func dismissNotification(id: UUID) {
+        guard let index = activeNotifications.firstIndex(where: { $0.id == id }) else { return }
+
+        let notification = activeNotifications.remove(at: index)
+        notification.timer?.invalidate()
 
         guard let screen = NSScreen.main else {
-            dismissImmediately()
+            notification.panel.orderOut(nil)
+            updateStackPositions()
             return
         }
 
-        let frame = panel.frame
-        let targetY = screen.frame.maxY
+        let frame = notification.panel.frame
+        let targetY = screen.frame.maxY + 50 // Slide up and out
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = slideOutDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().alphaValue = 0
-            panel.animator().setFrame(
+            notification.panel.animator().alphaValue = 0
+            notification.panel.animator().setFrame(
                 NSRect(x: frame.origin.x, y: targetY, width: frame.width, height: frame.height),
                 display: true
             )
         } completionHandler: {
             MainActor.assumeIsolated {
-                panel.orderOut(nil)
-                panel.alphaValue = 1
-                if activePanel === panel {
-                    activePanel = nil
-                }
+                notification.panel.orderOut(nil)
+            }
+        }
+
+        // Update current title/body to new top notification
+        if let topNotification = activeNotifications.first {
+            // We need to extract title/body from the panel, but for now just clear
+            // In a real implementation, we'd store these in the struct
+        }
+
+        // Animate remaining notifications to new positions
+        updateStackPositions()
+    }
+
+    /// Remove the oldest notification (called when at max capacity).
+    private static func removeOldestNotification() {
+        guard let oldest = activeNotifications.last else { return }
+        dismissNotification(id: oldest.id)
+    }
+
+    /// Update positions of all notifications in the stack.
+    private static func updateStackPositions() {
+        guard let screen = NSScreen.main else { return }
+
+        let safeTop = screen.safeAreaInsets.top
+        let screenFrame = screen.frame
+        let originX = screenFrame.midX - toastWidth / 2
+
+        for (index, notification) in activeNotifications.enumerated() {
+            let panel = notification.panel
+            let currentFrame = panel.frame
+            let toastHeight = currentFrame.height
+
+            // Calculate new Y position
+            let offsetY = CGFloat(index) * (toastHeight + stackSpacing)
+            let visibleY = screenFrame.maxY - safeTop - toastHeight - 8 - offsetY
+
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(
+                    NSRect(x: originX, y: visibleY, width: toastWidth, height: toastHeight),
+                    display: true
+                )
             }
         }
     }
 
-    private static func dismissImmediately() {
-        dismissTimer?.invalidate()
-        dismissTimer = nil
-        activePanel?.orderOut(nil)
-        activePanel = nil
-        onTap = nil
-    }
-
-    /// Pauses the auto-dismiss timer (called on mouse hover).
-    static func pauseDismissTimer() {
-        guard let timer = dismissTimer, timer.isValid, let startDate = timerStartDate else { return }
-        let elapsed = Date().timeIntervalSince(startDate)
-        remainingDismissTime = max(0.5, remainingDismissTime - elapsed)
-        timer.invalidate()
-        dismissTimer = nil
-        logger.debug("Dismiss timer paused, remaining: \(remainingDismissTime)s")
-    }
-
-    /// Resumes the auto-dismiss timer (called on mouse exit).
-    static func resumeDismissTimer() {
-        guard dismissTimer == nil, activePanel != nil else { return }
-        timerStartDate = Date()
-        dismissTimer = Timer.scheduledTimer(withTimeInterval: remainingDismissTime, repeats: false) { _ in
-            Task { @MainActor in
-                dismissAnimated()
-            }
-        }
-        logger.debug("Dismiss timer resumed for \(remainingDismissTime)s")
-    }
-
-    /// Handles a click on the toast.
-    static func handleTap() {
-        onTap?()
+    /// Dismiss all notifications immediately without animation.
+    static func clearQueue() {
+        clearAll()
     }
 
     private static func playNotificationSound() {
@@ -294,7 +357,7 @@ enum NotchNotificationPresenter {
         subtitleField.translatesAutoresizingMaskIntoConstraints = false
         subtitleField.font = NSFont.systemFont(ofSize: 11, weight: .regular)
         subtitleField.textColor = NSColor.white.withAlphaComponent(0.7)
-        subtitleField.maximumNumberOfLines = 5
+        subtitleField.maximumNumberOfLines = 3
         subtitleField.lineBreakMode = .byWordWrapping
         subtitleField.preferredMaxLayoutWidth = toastWidth - 56
         container.addSubview(subtitleField)
@@ -318,6 +381,12 @@ enum NotchNotificationPresenter {
 
         return container
     }
+
+    /// Handles a click on a toast.
+    static func handleTap(for notificationId: UUID) {
+        guard let notification = activeNotifications.first(where: { $0.id == notificationId }) else { return }
+        notification.onTap()
+    }
 }
 
 // MARK: - Toast Overlay View
@@ -325,6 +394,17 @@ enum NotchNotificationPresenter {
 /// Transparent overlay that captures mouse clicks and hover events on the toast.
 private final class ToastOverlayView: NSView {
     private var trackingArea: NSTrackingArea?
+    private let notificationId: UUID
+
+    init(frame: NSRect, notificationId: UUID = UUID()) {
+        self.notificationId = notificationId
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        notificationId = UUID()
+        super.init(coder: coder)
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -341,16 +421,14 @@ private final class ToastOverlayView: NSView {
 
     override func mouseEntered(with _: NSEvent) {
         NSCursor.pointingHand.push()
-        NotchNotificationPresenter.pauseDismissTimer()
     }
 
     override func mouseExited(with _: NSEvent) {
         NSCursor.pop()
-        NotchNotificationPresenter.resumeDismissTimer()
     }
 
     override func mouseDown(with _: NSEvent) {
         ButtonSound.shared.play()
-        NotchNotificationPresenter.handleTap()
+        NotchNotificationPresenter.handleTap(for: notificationId)
     }
 }

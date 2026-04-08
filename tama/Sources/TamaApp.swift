@@ -44,10 +44,7 @@ struct TamaApp: App {
 
             Button("Test Notification") {
                 ButtonSound.shared.play()
-                NotchNotificationPresenter.showReminder(
-                    name: "Test Reminder",
-                    message: "This is a test notification to preview the toast style."
-                )
+                TestNotificationCoordinator.shared.fireNextTest()
             }
 
             Button("Reset Onboarding") {

@@ -130,6 +130,7 @@
 		FAB5F04C57BAF3D56B5AC2D9 /* MascotState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5024A2FE1F0572622CBD589A /* MascotState.swift */; };
 		FD410A6901415612CBBDA01C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 069075C7C24CCF529C627912 /* Assets.xcassets */; };
 		FF09DA4583247F6121E8381B /* MascotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAF4D3233A25FE4D56FA0CB /* MascotView.swift */; };
+		FFCDF6FF01E6F3D156093042 /* TestNotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C576A7005B7596D8A2B4C1A5 /* TestNotificationCoordinator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -240,6 +241,7 @@
 		C268FDAD3692A0D7067759E7 /* TogglePanelTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogglePanelTool.swift; sourceTree = "<group>"; };
 		C3985C97D4A245429D23027B /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		C3C2F60ACFB35424A2DDA15D /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
+		C576A7005B7596D8A2B4C1A5 /* TestNotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestNotificationCoordinator.swift; sourceTree = "<group>"; };
 		C59F4E13C2164F5F94AC703A /* AnimatedTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedTabBar.swift; sourceTree = "<group>"; };
 		C712A61E11D4EB9BFE8449FF /* BrowserToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserToolTests.swift; sourceTree = "<group>"; };
 		C8BE65AA1CF2B2D95CCF9DB7 /* StreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamParserTests.swift; sourceTree = "<group>"; };
@@ -601,6 +603,7 @@
 			children = (
 				10585A9AA99FC241A19CCF03 /* NotchNotificationPresenter.swift */,
 				49A16FE12DF8079043A80BE5 /* NotificationDetailPanel.swift */,
+				C576A7005B7596D8A2B4C1A5 /* TestNotificationCoordinator.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -882,6 +885,7 @@
 				C979EFDEF5D5EF9AC6DE67FD /* TaskListView.swift in Sources */,
 				03B8041C30774A4B8E7EEEA6 /* TaskStore.swift in Sources */,
 				1ADEE673AC767A09D70AB321 /* TaskTool.swift in Sources */,
+				FFCDF6FF01E6F3D156093042 /* TestNotificationCoordinator.swift in Sources */,
 				78FC6FCB2B81AC7606EE6F2C /* TogglePanelTool.swift in Sources */,
 				C2AB48EA302D47AFA3713457 /* ToolIndicatorView.swift in Sources */,
 				504092E774E94DCD60B9F1CF /* ToolListView.swift in Sources */,
