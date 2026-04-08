@@ -1,9 +1,17 @@
 ---
 name: release
-description: Build, tag, and release a new version of Tama
+description: Tag and trigger GitHub Actions workflow to build and release a new version of Tama
 ---
 
-Create a new GitHub release with signed build and DMG.
+Create a new GitHub release using the GitHub Actions workflow.
+
+The workflow (`.github/workflows/release.yml`) automatically:
+- Builds the signed Release binary
+- Deep signs all nested frameworks
+- Notarizes the app
+- Creates a DMG with `create-dmg`
+- Notarizes the DMG
+- Creates the GitHub release with auto-generated notes
 
 ## Step 1: Verify Clean State
 
@@ -31,70 +39,55 @@ Use this computed VERSION for all subsequent steps. If the user wants a minor or
 
 ## Step 3: Create and Push Tag
 
+Pushing a tag matching `v*` triggers the release workflow:
+
 ```bash
 git tag <VERSION>
 git push origin <VERSION>
 ```
 
-## Step 4: Build Release
+## Step 4: Monitor Workflow
 
-Build the signed Release binary:
+The workflow will start automatically. Monitor its progress:
+
 ```bash
-xcodebuild -project Tama.xcodeproj \
-  -scheme Tama \
-  -configuration Release \
-  -arch arm64 \
-  -derivedDataPath build \
-  CODE_SIGN_STYLE=Manual \
-  "CODE_SIGN_IDENTITY=Developer ID Application: INDIANA RUSTAN DI (396M7LY29W)" \
-  DEVELOPMENT_TEAM=396M7LY29W \
-  "OTHER_CODE_SIGN_FLAGS=--options runtime" \
-  clean build
+gh run list --workflow=release.yml --limit 1
 ```
 
-Verify the build succeeded and the app is signed:
+To watch the live logs:
 ```bash
-codesign -dv --verbose=4 build/Build/Products/Release/Tama.app 2>&1 | grep -E "(Signed|Authority|Signature)"
+gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId -q '.[0].databaseId')
 ```
 
-## Step 5: Create DMG
-
-Create a compressed DMG from the signed app:
+Or open in browser:
 ```bash
-hdiutil create -volname "Tama" \
-  -srcfolder build/Build/Products/Release/Tama.app \
-  -ov -format UDZO \
-  build/Tama-<VERSION>.dmg
+gh run view --web $(gh run list --workflow=release.yml --limit 1 --json databaseId -q '.[0].databaseId')
 ```
 
-## Step 6: Generate Release Notes
+## Step 5: Verify Release
 
-Get commits since last tag for release notes:
+Once the workflow completes successfully, verify the release:
+
 ```bash
-git log <PREVIOUS_VERSION>..<VERSION> --oneline
+gh release view <VERSION> --json url,tagName,assets
 ```
 
-Generate a summary of changes organized by category (Features, Fixes, Improvements).
-
-## Step 7: Create GitHub Release
-
-Create the release with notes:
-```bash
-gh release create <VERSION> \
-  --title "<VERSION>" \
-  --notes "Generated release notes here"
-```
-
-Upload the DMG:
-```bash
-gh release upload <VERSION> build/Tama-<VERSION>.dmg --clobber
-```
-
-## Step 8: Verify
-
-Confirm the release is live:
-```bash
-gh release view <VERSION> --json url,assets
-```
+The release should include:
+- A notarized DMG asset (`Tamagotchai-<VERSION>.dmg`)
+- Auto-generated release notes
 
 Report the release URL and asset details to the user.
+
+## Troubleshooting
+
+If the workflow fails:
+1. Check the logs: `gh run view <RUN_ID>`
+2. Common issues:
+   - Certificate expiration
+   - Notarization timeout
+   - Code signing errors
+3. Fix the issue, delete the tag, and retry:
+   ```bash
+   git tag -d <VERSION>
+   git push origin --delete <VERSION>
+   ```
