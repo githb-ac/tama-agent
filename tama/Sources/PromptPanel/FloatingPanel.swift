@@ -150,7 +150,7 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Custom animated tab bar with a sliding highlight indicator.
     lazy var tabBar: AnimatedTabBar = {
         let bar = AnimatedTabBar(
-            labels: ["Chats", "Reminders", "Routines", "Tasks", "Tools"]
+            labels: ["Chats", "Reminders", "Routines", "Tasks", "Skills", "Tools"]
         ) { [weak self] index in
             self?.tabBarChanged(index)
         }
@@ -248,6 +248,37 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
     /// Whether we're currently viewing a task list's detail (drilled in).
     var isInsideTaskDetail = false
 
+    // MARK: - Skills Mode
+
+    /// The skill list view shown when the Skills tab is active.
+    lazy var skillListView: SkillListView = {
+        let v = SkillListView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.onSelectSkill = { [weak self] skill in
+            self?.onSelectSkill?(skill)
+        }
+        v.onDeleteSkill = { [weak self] skill in
+            self?.onDeleteSkill?(skill)
+        }
+        return v
+    }()
+
+    /// Height constraint for the skill list.
+    var skillListHeightConstraint: NSLayoutConstraint?
+
+    /// Whether the panel is currently in Skills mode (Skills tab selected).
+    var isSkillsMode = false
+
+    /// Whether we're currently viewing a skill's detail (drilled in).
+    var isInsideSkill = false
+
+    /// The view pushed by the active skill selection.
+    var activeSkillView: NSView?
+
+    /// Height constraint for the active skill view.
+    var activeSkillHeightConstraint: NSLayoutConstraint?
+
     /// The currently active tool (when drilled in).
     var activeTool: PanelTool?
 
@@ -303,6 +334,15 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
 
     /// Called when the user deletes a task list from the task list.
     var onDeleteTaskList: ((TaskList) -> Void)?
+
+    /// Called when the user selects a skill from the skill list.
+    var onSelectSkill: ((Skill) -> Void)?
+
+    /// Called when the user deletes a skill from the skill list.
+    var onDeleteSkill: ((Skill) -> Void)?
+
+    /// Called when the input field text changes while in Skills mode.
+    var onSkillSearchChanged: ((String) -> Void)?
 
     // MARK: - UI Components
 
@@ -500,12 +540,14 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         toolIndicatorBottomConstraint.isActive = true
         toolIndicatorBottomSpacerConstraint = toolIndicatorBottomConstraint
 
-        // Add divider + tab bar + session list + tool list + response to stack, keep them hidden
+        // Add divider + tab bar + session list + tool list + task list + skill list + response to stack, keep them
+        // hidden
         mainStack.addArrangedSubview(dividerContainer)
         mainStack.addArrangedSubview(tabBarContainer)
         mainStack.addArrangedSubview(sessionListView)
         mainStack.addArrangedSubview(toolListView)
         mainStack.addArrangedSubview(taskListView)
+        mainStack.addArrangedSubview(skillListView)
         mainStack.addArrangedSubview(responseScrollView)
 
         let sessionHeight = sessionListView.heightAnchor.constraint(equalToConstant: 0)
@@ -519,6 +561,10 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
         let taskListHeight = taskListView.heightAnchor.constraint(equalToConstant: 0)
         taskListHeight.isActive = true
         taskListHeightConstraint = taskListHeight
+
+        let skillListHeight = skillListView.heightAnchor.constraint(equalToConstant: 0)
+        skillListHeight.isActive = true
+        skillListHeightConstraint = skillListHeight
 
         dividerContainer.isHidden = true
         responseScrollView.isHidden = true
@@ -606,6 +652,11 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
                 popToolView()
                 return
             }
+            // If inside a skill's drilled-in view, pop back to skill list
+            if isInsideSkill {
+                popSkillView()
+                return
+            }
             // Try interrupt first — if something was interrupted, don't dismiss
             if onInterrupt?() == true {
                 return
@@ -672,6 +723,8 @@ final class FloatingPanel: NSPanel, NSTextFieldDelegate {
             if isToolsMode, !isInsideTool { return true }
             // In tasks mode (list view), Return does nothing (filtering is live)
             if isTasksMode, !isInsideTaskDetail { return true }
+            // In skills mode (list view), Return does nothing (filtering is live)
+            if isSkillsMode { return true }
             // In session search mode (reminders/routines list), Return does nothing
             if isSessionSearchMode { return true }
             // Inside a tool, Return is consumed (tool handles its own interaction)

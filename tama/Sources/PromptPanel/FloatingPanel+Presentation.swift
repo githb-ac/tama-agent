@@ -310,6 +310,18 @@ extension FloatingPanel {
         taskListView.isHidden = true
         taskListHeightConstraint?.constant = 0
 
+        // Clean up skill view
+        isSkillsMode = false
+        isInsideSkill = false
+        if let activeSkillView {
+            mainStack.removeArrangedSubview(activeSkillView)
+            activeSkillView.removeFromSuperview()
+            activeSkillHeightConstraint = nil
+            self.activeSkillView = nil
+        }
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+
         mascot.setState(.idle)
         mascot.resume()
 

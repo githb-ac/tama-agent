@@ -71,6 +71,7 @@ final class ToolRegistry: Sendable {
             TaskTool(),
             DismissTool(),
             BrowserTool(),
+            SkillTool(),
         ])
     }
 

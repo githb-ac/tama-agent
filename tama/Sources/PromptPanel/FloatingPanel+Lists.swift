@@ -549,4 +549,172 @@ extension FloatingPanel {
             taskDetailView?.update(taskList: taskList)
         }
     }
+
+    // MARK: - Skill List
+
+    /// Shows the skill list (called when Skills tab is selected).
+    func showSkillList(_ skills: [Skill]) {
+        // If tab bar is already visible we're switching tabs — use instant swap to prevent jitter
+        let isTabSwitch = !tabBarContainer.isHidden
+
+        isSkillsMode = true
+        isInsideSkill = false
+
+        // Hide session list, tool list, task list, skill detail, and response area
+        sessionListView.isHidden = true
+        sessionListHeightConstraint?.constant = 0
+        toolListView.isHidden = true
+        toolListHeightConstraint?.constant = 0
+        taskListView.isHidden = true
+        taskListHeightConstraint?.constant = 0
+        responseScrollView.isHidden = true
+        responseHeightConstraint?.constant = 0
+
+        // Remove any pushed skill view
+        if let activeSkillView {
+            mainStack.removeArrangedSubview(activeSkillView)
+            activeSkillView.removeFromSuperview()
+            activeSkillHeightConstraint = nil
+            self.activeSkillView = nil
+        }
+
+        // Update input field
+        inputField.placeholderString = "Search skills..."
+        inputField.stringValue = ""
+
+        // Reload skill list
+        skillListView.reload(skills: skills)
+
+        let listTargetHeight = min(skillListView.contentHeight, responseMaxHeight - tabBarHeight)
+
+        if !isTabSwitch {
+            skillListHeightConstraint?.constant = 0
+        }
+        dividerContainer.isHidden = false
+        tabBarContainer.isHidden = false
+        skillListView.isHidden = false
+        dividerContainer.alphaValue = 1
+        tabBarContainer.alphaValue = 1
+        skillListView.alphaValue = 1
+
+        let newPanelHeight = inputHeight + 1 + tabBarHeight + listTargetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        if isTabSwitch {
+            // Instant swap for tab switches — no animation prevents vertical jitter
+            skillListHeightConstraint?.constant = listTargetHeight
+            setFrame(newFrame, display: true)
+            positionMascotOverSpacer()
+            skillListView.scrollToTop()
+        } else {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                ctx.allowsImplicitAnimation = true
+                self.skillListHeightConstraint?.animator().constant = listTargetHeight
+                self.animator().setFrame(newFrame, display: true)
+            } completionHandler: {
+                MainActor.assumeIsolated { [weak self] in
+                    self?.positionMascotOverSpacer()
+                    self?.skillListView.scrollToTop()
+                }
+            }
+        }
+
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
+    /// Lightweight filter — only reloads the skill list data without touching the input field or frame.
+    func filterSkillList(skills: [Skill]) {
+        skillListView.reload(skills: skills)
+        skillListView.scrollToTop()
+    }
+
+    /// Hides the skill list (called when switching away from Skills tab).
+    func hideSkillList() {
+        isSkillsMode = false
+        isInsideSkill = false
+
+        // Remove any pushed skill view
+        if let activeSkillView {
+            mainStack.removeArrangedSubview(activeSkillView)
+            activeSkillView.removeFromSuperview()
+            activeSkillHeightConstraint = nil
+            self.activeSkillView = nil
+        }
+
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+    }
+
+    /// Pushes a skill's content view, replacing the skill list.
+    func pushSkillView(skill: Skill) {
+        isInsideSkill = true
+        inputField.placeholderString = "Ask anything..."
+        inputField.stringValue = ""
+
+        // Hide the skill list
+        skillListView.isHidden = true
+        skillListHeightConstraint?.constant = 0
+
+        // Create and insert the skill detail view
+        let view = SkillDetailView(skill: skill)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        activeSkillView = view
+
+        // Insert skill view in the mainStack where the skill list was
+        let skillListIndex = mainStack.arrangedSubviews.firstIndex(of: skillListView) ?? 5
+        mainStack.insertArrangedSubview(view, at: skillListIndex + 1)
+
+        let targetHeight = responseMaxHeight - tabBarHeight
+        let heightConstraint = view.heightAnchor.constraint(equalToConstant: targetHeight)
+        heightConstraint.isActive = true
+        activeSkillHeightConstraint = heightConstraint
+
+        let newPanelHeight = inputHeight + 1 + tabBarHeight + targetHeight
+        let newOriginY = topY - newPanelHeight
+        let newFrame = NSRect(
+            x: frame.origin.x,
+            y: newOriginY,
+            width: panelWidth,
+            height: newPanelHeight
+        )
+
+        // Instant swap — panel is already expanded from the skill list
+        setFrame(newFrame, display: true)
+        positionMascotOverSpacer()
+        invalidateShadow()
+        makeFirstResponder(inputField)
+    }
+
+    /// Pops back from a skill's drilled-in view to the skill list.
+    func popSkillView() {
+        guard isInsideSkill else { return }
+
+        // Remove the active skill view
+        if let activeSkillView {
+            mainStack.removeArrangedSubview(activeSkillView)
+            activeSkillView.removeFromSuperview()
+            activeSkillHeightConstraint = nil
+            self.activeSkillView = nil
+        }
+
+        isInsideSkill = false
+
+        // Re-show the skill list
+        SkillStore.shared.loadAll()
+        let skills = SkillStore.shared.skills
+        if skills.isEmpty {
+            showSkillList([])
+        } else {
+            showSkillList(skills)
+        }
+    }
 }
