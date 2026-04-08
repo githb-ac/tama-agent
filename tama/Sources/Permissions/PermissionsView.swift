@@ -9,6 +9,7 @@ struct PermissionsView: View {
     @State private var speechGranted = false
     @State private var appManagementGranted = false
     @State private var notificationsGranted = false
+    @State private var permissionPollTimer: Timer?
 
     @ObservedObject private var chromium = ChromiumManager.shared
     private let checker = PermissionsChecker.shared
@@ -137,7 +138,22 @@ struct PermissionsView: View {
             .padding(.vertical, 10)
         }
         .frame(width: 340)
-        .onAppear { refreshStatuses() }
+        .onAppear { startPermissionPolling() }
+        .onDisappear { stopPermissionPolling() }
+    }
+
+    private func startPermissionPolling() {
+        refreshStatuses()
+        permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                refreshStatuses()
+            }
+        }
+    }
+
+    private func stopPermissionPolling() {
+        permissionPollTimer?.invalidate()
+        permissionPollTimer = nil
     }
 
     private var hasBrowser: Bool {
