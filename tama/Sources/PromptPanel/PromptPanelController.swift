@@ -628,8 +628,8 @@ final class PromptPanelController {
             self?.logger.warning("Voice capture error: \(errorMessage)")
             self?.panel?.hideWaveform()
             self?.isVoiceMode = false
-            // Show brief error to user
-            self?.panel?.showError(title: "Voice Unavailable", message: errorMessage, tint: .orange)
+            // Show subtle error — mic permission issues are common, don't alarm user
+            self?.panel?.showError(title: "Voice", message: errorMessage, tint: .systemOrange)
         }
 
         VoiceService.shared.startFollowUpCapture()

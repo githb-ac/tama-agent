@@ -11,22 +11,23 @@ enum AppError {
     case unknown(String)
 
     /// The bold title shown at the top of the error block.
+    /// Short, friendly titles that don't sound alarming.
     var title: String {
         switch self {
         case .overloaded:
-            "Server Overloaded"
+            "API Busy"
         case .authFailed:
-            "Authentication Failed"
+            "Sign In Required"
         case .subscriptionRequired:
-            "Subscription Required"
+            "Subscription Needed"
         case .notConnected:
-            "Not Connected"
+            "Add API Key"
         case .timeout:
-            "Connection Timed Out"
+            "Connection Issue"
         case .streamInterrupted:
-            "Stream Interrupted"
+            "Interrupted"
         case .unknown:
-            "Something Went Wrong"
+            "Oops"
         }
     }
 
@@ -34,35 +35,39 @@ enum AppError {
     var message: String {
         switch self {
         case .overloaded:
-            "The API server is under heavy load. Try again in a moment."
+            "The API is busy. Try again in a moment."
         case .authFailed:
-            "Your session has expired. Check your API key in AI Settings."
+            "Check your API key in AI Settings."
         case let .subscriptionRequired(detail):
             detail
         case .notConnected:
-            "Add an API key in AI Settings to get started."
+            "Open AI Settings to add your API key."
         case .timeout:
-            "Couldn't reach the API server. Check your internet and try again."
+            "Check your connection and try again."
         case let .streamInterrupted(detail):
             detail.isEmpty
-                ? "The response was interrupted. Try sending your message again."
+                ? "The response was interrupted. Try again."
                 : detail
         case let .unknown(detail):
             detail.isEmpty
-                ? "An unexpected error occurred. Please try again."
+                ? "Something went wrong. Try again."
                 : detail
         }
     }
 
     /// The tint color for the error block background and border.
+    /// Uses subtle oranges/ambers for warnings, neutral grays for info.
     var tint: NSColor {
         switch self {
-        case .overloaded, .streamInterrupted, .unknown, .notConnected:
-            .systemRed
-        case .authFailed, .subscriptionRequired:
+        case .notConnected:
+            // Neutral amber for "add API key" — not an error, just a state
             .systemOrange
-        case .timeout:
-            .systemGray
+        case .authFailed, .subscriptionRequired:
+            // Softer orange for auth issues
+            .systemOrange
+        case .overloaded, .streamInterrupted, .unknown, .timeout:
+            // Neutral amber for transient issues
+            .systemOrange
         }
     }
 

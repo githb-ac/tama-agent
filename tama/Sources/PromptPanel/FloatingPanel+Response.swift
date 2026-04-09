@@ -26,8 +26,8 @@ extension FloatingPanel {
         tabBarContainer.isHidden = false
         tabBarContainer.alphaValue = 1
 
-        let titleFont = NSFont.systemFont(ofSize: 16, weight: .semibold)
-        let messageFont = NSFont.systemFont(ofSize: 14, weight: .regular)
+        let titleFont = NSFont.systemFont(ofSize: 13, weight: .medium)
+        let messageFont = NSFont.systemFont(ofSize: 12, weight: .regular)
         let textColor = NSColor.white
 
         // Wrap in a rounded-rect background using NSTextBlock

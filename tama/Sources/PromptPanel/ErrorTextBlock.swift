@@ -1,6 +1,7 @@
 import AppKit
 
-/// NSTextBlock subclass that draws a tinted rounded-rect background with a subtle border.
+/// NSTextBlock subclass that draws a subtle glassmorphic error background.
+/// Uses minimal tinting to match the app's aesthetic — errors shouldn't be alarming.
 final class ErrorTextBlock: NSTextBlock {
     private let tint: NSColor
 
@@ -8,9 +9,9 @@ final class ErrorTextBlock: NSTextBlock {
         self.tint = tint
         super.init()
         setContentWidth(100, type: .percentageValueType)
-        setWidth(12, type: .absoluteValueType, for: .padding)
-        setWidth(14, type: .absoluteValueType, for: .padding, edge: .minX)
-        setWidth(14, type: .absoluteValueType, for: .padding, edge: .maxX)
+        setWidth(10, type: .absoluteValueType, for: .padding)
+        setWidth(12, type: .absoluteValueType, for: .padding, edge: .minX)
+        setWidth(12, type: .absoluteValueType, for: .padding, edge: .maxX)
     }
 
     @available(*, unavailable)
@@ -25,15 +26,15 @@ final class ErrorTextBlock: NSTextBlock {
         layoutManager _: NSLayoutManager
     ) {
         let rect = frameRect.insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 10, yRadius: 10)
 
-        // Tinted fill — higher opacity for visibility on dark backgrounds
-        tint.withAlphaComponent(0.55).setFill()
+        // Subtle glassmorphic fill — much lower opacity for softer appearance
+        tint.withAlphaComponent(0.12).setFill()
         path.fill()
 
-        // Border
-        tint.withAlphaComponent(0.7).setStroke()
-        path.lineWidth = 1
+        // Soft border
+        tint.withAlphaComponent(0.35).setStroke()
+        path.lineWidth = 0.5
         path.stroke()
     }
 }
