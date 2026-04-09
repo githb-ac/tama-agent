@@ -172,13 +172,16 @@ final class PromptPanelController {
                 newPanel.mascot.notifyKeystroke()
                 // Hide session list when user starts typing
                 newPanel.hideSessionList()
-                // User started typing — cancel voice capture & speech, switch to typing mode
+                // User started typing — this is NOT voice mode, ensure we respond in text
+                if isVoiceMode {
+                    logger.info("User typing — switching from voice to typing mode")
+                    isVoiceMode = false
+                }
+                // Also cancel any active voice capture
                 if VoiceService.shared.state == .followUp {
-                    logger.info("User typing — cancelling voice capture")
                     SpeechService.shared.stop()
                     VoiceService.shared.stopFollowUpCapture()
                     newPanel.hideWaveformForTyping()
-                    isVoiceMode = false
                 }
             }
         }
@@ -619,6 +622,14 @@ final class PromptPanelController {
 
         VoiceService.shared.onAudioLevelChanged = { [weak self] level in
             self?.panel?.setAudioLevel(level)
+        }
+
+        VoiceService.shared.onError = { [weak self] errorMessage in
+            self?.logger.warning("Voice capture error: \(errorMessage)")
+            self?.panel?.hideWaveform()
+            self?.isVoiceMode = false
+            // Show brief error to user
+            self?.panel?.showError(title: "Voice Unavailable", message: errorMessage, tint: .orange)
         }
 
         VoiceService.shared.startFollowUpCapture()

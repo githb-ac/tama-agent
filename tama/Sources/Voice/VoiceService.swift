@@ -54,6 +54,9 @@ final class VoiceService: @unchecked Sendable {
     /// Called with live partial transcript as the user speaks.
     var onPartialTranscript: ((String) -> Void)?
 
+    /// Called when speech capture fails to start (e.g., microphone error).
+    var onError: ((String) -> Void)?
+
     // MARK: - Audio & Speech
 
     private var audioEngine: AVAudioEngine?
@@ -95,11 +98,13 @@ final class VoiceService: @unchecked Sendable {
         let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
         guard micStatus == .authorized else {
             logger.warning("Cannot start speech capture — microphone permission: \(micStatus.description)")
+            onError?("Microphone permission not granted. Check System Settings > Privacy & Security > Microphone.")
             return
         }
         let speechStatus = SFSpeechRecognizer.authorizationStatus()
         guard speechStatus == .authorized else {
             logger.warning("Cannot start speech capture — speech recognition permission: \(speechStatus.description)")
+            onError?("Speech recognition permission not granted. Check System Settings > Privacy & Security > Speech Recognition.")
             return
         }
 
@@ -170,6 +175,7 @@ final class VoiceService: @unchecked Sendable {
             try engine.start()
         } catch {
             logger.error("Failed to start audio engine: \(error.localizedDescription)")
+            onError?("Could not access microphone. It may be in use by another app.")
             audioEngine = nil
             state = .idle
             return
