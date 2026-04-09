@@ -22,12 +22,16 @@ enum OnboardingController {
 
     /// Whether the user has completed onboarding.
     static var isCompleted: Bool {
-        UserDefaults.standard.bool(forKey: completedKey)
+        let completed = UserDefaults.standard.bool(forKey: completedKey)
+        logger.debug("Onboarding isCompleted check: \(completed)")
+        return completed
     }
 
     /// Shows the onboarding wizard as a centered HUD window.
     static func show() {
+        logger.info("Onboarding show() called")
         if let existing = window {
+            logger.debug("Onboarding window already exists, bringing to front")
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -81,6 +85,9 @@ enum OnboardingController {
             let x = screenFrame.midX - windowSize.width / 2
             let y = screenFrame.midY - windowSize.height / 2
             win.setFrameOrigin(NSPoint(x: x, y: y))
+            logger.debug("Window positioned at (\(x), \(y)) on screen \(screenFrame)")
+        } else {
+            logger.warning("No main screen found for window positioning")
         }
 
         // Show dock icon during onboarding so users can find the app,
@@ -93,7 +100,7 @@ enum OnboardingController {
 
         window = win
         startActivationObserver()
-        logger.info("Onboarding window shown")
+        logger.info("Onboarding window created and shown — isVisible: \(win.isVisible), isKeyWindow: \(win.isKeyWindow)")
     }
 
     /// Temporarily lowers the window so system dialogs appear on top.

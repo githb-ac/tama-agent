@@ -79,8 +79,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         logger.info("App launched — loggedIn: \(isLoggedIn), accessibility: \(hasAccessibility)")
 
         // Show onboarding on first launch
-        if !OnboardingController.isCompleted {
+        let onboardingCompleted = OnboardingController.isCompleted
+        logger.info("Launch check — onboardingCompleted: \(onboardingCompleted)")
+        if !onboardingCompleted {
+            logger.info("Showing onboarding on first launch")
             OnboardingController.show()
+        } else {
+            logger.info("Skipping onboarding — already completed")
         }
 
         // Register global hotkey: ⌥ + Space
