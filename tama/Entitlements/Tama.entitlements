@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+    <!-- Network access for API calls -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Audio input (microphone) for voice capture -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- User file access for reading/writing files -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- Automation for accessibility features -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Allow loading embedded frameworks (KokoroSwift, etc.) -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
 </plist>
