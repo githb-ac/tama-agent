@@ -277,6 +277,7 @@ final class ScheduleStore {
 
             // Mark as active for shimmer effect
             activeRoutineIDs.insert(job.id)
+            NotchActivityIndicator.addProcess(id: job.id.uuidString, label: "Routine: \(job.name)")
 
             // Increment run count
             if let index = jobs.firstIndex(where: { $0.id == job.id }) {
@@ -311,6 +312,7 @@ final class ScheduleStore {
 
             // Mark as inactive
             activeRoutineIDs.remove(job.id)
+            NotchActivityIndicator.removeProcess(id: job.id.uuidString)
 
             // Persist as an individual routine session
             let userMsg = ChatMessage(

@@ -97,6 +97,7 @@ final class PromptPanelController {
 
     private func showPanel() {
         logger.info("Showing panel")
+        NotchActivityIndicator.removeProcess(id: "chat-agent")
 
         // Cancel any pending TTS unload — user reopened the panel
         ttsUnloadTask?.cancel()
@@ -136,6 +137,7 @@ final class PromptPanelController {
     /// Cancels and nils all active tasks, stops TTS and voice capture,
     /// and resets the tool indicator. Safe to call even if nothing is active.
     private func cancelAllActiveTasks(clearHistory: Bool = false) {
+        NotchActivityIndicator.removeProcess(id: "chat-agent")
         activeAgentTask?.cancel()
         activeStreamTask?.cancel()
         activeAgentTask = nil
@@ -271,6 +273,11 @@ final class PromptPanelController {
         newPanel.onDismiss = { [weak self] in
             guard let self else { return }
             isPanelDismissed = true
+
+            // Show activity indicator if agent is still working in the background.
+            if activeAgentTask != nil {
+                NotchActivityIndicator.addProcess(id: "chat-agent", label: "Thinking…")
+            }
 
             // Cancel UI-only tasks (stream rendering, TTS, voice) but
             // let the agent task keep running in the background so the
@@ -826,6 +833,9 @@ final class PromptPanelController {
             backgroundAccumulatedText += delta
             MainActor.assumeIsolated {
                 guard currentSession?.id == capturedSessionId else { return }
+                if isPanelDismissed {
+                    NotchActivityIndicator.updateDetail(id: "chat-agent", text: "Thinking…")
+                }
                 panel?.hideToolIndicator()
                 if speakInline {
                     SpeechService.shared.feedChunk(delta)
@@ -836,6 +846,10 @@ final class PromptPanelController {
             continuation.yield("\n\n")
             MainActor.assumeIsolated {
                 guard currentSession?.id == capturedSessionId else { return }
+                if isPanelDismissed {
+                    let detail = ToolIndicatorView.displayName(for: name)
+                    NotchActivityIndicator.updateDetail(id: "chat-agent", text: detail)
+                }
                 panel?.showToolIndicator(name: name)
                 if speakInline {
                     SpeechService.shared.flushBuffer()
@@ -844,6 +858,10 @@ final class PromptPanelController {
         case let .toolRunning(name, args):
             MainActor.assumeIsolated {
                 guard currentSession?.id == capturedSessionId else { return }
+                if isPanelDismissed {
+                    let detail = ToolIndicatorView.displayName(for: name, args: args)
+                    NotchActivityIndicator.updateDetail(id: "chat-agent", text: detail)
+                }
                 panel?.showToolIndicator(name: name, args: args)
             }
         case .toolResult:
@@ -868,6 +886,7 @@ final class PromptPanelController {
         capturedSessionId: UUID,
         backgroundAccumulatedText: String
     ) {
+        NotchActivityIndicator.removeProcess(id: "chat-agent")
         guard let updatedHistory else { return }
 
         let messages = updatedHistory.compactMap { ChatMessage.fromAPIFormat($0) }
@@ -918,6 +937,7 @@ final class PromptPanelController {
     /// Handles the agent dismissing itself (user requested panel close).
     private func handleAgentDismissed() {
         logger.info("Agent dismissed — closing panel")
+        NotchActivityIndicator.removeProcess(id: "chat-agent")
         isDismissedByAgent = true
         SpeechService.shared.stop()
         cancelAllActiveTasks(clearHistory: true)
