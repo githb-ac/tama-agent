@@ -222,18 +222,22 @@ private final class RoutineRowView: NSView {
     private let timeLabel = NSTextField(labelWithString: "")
     private var titleLabel: NSTextField?
 
-    private lazy var shimmerLayer: CAGradientLayer = {
+    /// Gradient layer used for the text shimmer effect when a routine is active.
+    private lazy var shimmerGradient: CAGradientLayer = {
         let gradient = CAGradientLayer()
         gradient.colors = [
-            NSColor.systemGreen.withAlphaComponent(0.0).cgColor,
-            NSColor.systemGreen.withAlphaComponent(0.35).cgColor,
-            NSColor.systemGreen.withAlphaComponent(0.0).cgColor,
+            NSColor.systemGreen.cgColor,
+            NSColor.white.cgColor,
+            NSColor.systemGreen.cgColor,
         ]
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
         gradient.endPoint = CGPoint(x: 1, y: 0.5)
-        gradient.locations = [-1, -0.5, 0].map { NSNumber(value: $0) }
+        gradient.locations = [0, 0.5, 1].map { NSNumber(value: $0) }
         return gradient
     }()
+
+    /// Text mask so the shimmer gradient is only visible through the letter shapes.
+    private let shimmerTextMask = CATextLayer()
 
     init(routine: ScheduledJob, isActive: Bool = false) {
         self.routine = routine
@@ -318,15 +322,31 @@ private final class RoutineRowView: NSView {
     private func setupShimmer() {
         guard let titleLabel else { return }
         titleLabel.wantsLayer = true
-        titleLabel.layer?.addSublayer(shimmerLayer)
         titleLabel.layer?.masksToBounds = true
+
+        // Make the NSTextField text invisible — the gradient provides the visible text.
+        titleLabel.textColor = .clear
+
+        // Configure the text mask layer to match the title label.
+        shimmerTextMask.string = titleLabel.stringValue
+        shimmerTextMask.font = titleLabel.font
+        shimmerTextMask.fontSize = titleLabel.font?.pointSize ?? 18
+        shimmerTextMask.foregroundColor = NSColor.white.cgColor
+        shimmerTextMask.alignmentMode = .left
+        shimmerTextMask.truncationMode = .end
+        shimmerTextMask.isWrapped = false
+        shimmerTextMask.contentsScale = window?.backingScaleFactor ?? 2.0
+
+        // The gradient is masked by the text — only letter shapes are visible.
+        shimmerGradient.mask = shimmerTextMask
+        titleLabel.layer?.addSublayer(shimmerGradient)
 
         let animation = CABasicAnimation(keyPath: "locations")
         animation.fromValue = [-1.0, -0.5, 0.0].map { NSNumber(value: $0) }
         animation.toValue = [1.0, 1.5, 2.0].map { NSNumber(value: $0) }
         animation.duration = 1.5
         animation.repeatCount = .infinity
-        shimmerLayer.add(animation, forKey: "shimmer")
+        shimmerGradient.add(animation, forKey: "shimmer")
     }
 
     @objc private func runClicked() {
@@ -343,7 +363,8 @@ private final class RoutineRowView: NSView {
         super.layout()
         highlightLayer.frame = bounds.insetBy(dx: 8, dy: 1)
         if isActive, let titleLabel {
-            shimmerLayer.frame = titleLabel.bounds
+            shimmerGradient.frame = titleLabel.bounds
+            shimmerTextMask.frame = titleLabel.bounds
         }
     }
 
