@@ -92,13 +92,13 @@ final class CodexStreamParser {
 
         case "error":
             let msg = obj["message"] as? String ?? "Unknown Codex error"
-            logger.error("Codex stream error: \(msg)")
+            logger.error("Codex stream error: \(msg, privacy: .public)")
             throw ClaudeService.ClaudeServiceError.streamError(msg)
 
         case "response.failed":
             let error = obj["error"] as? [String: Any]
             let msg = error?["message"] as? String ?? "Codex response failed"
-            logger.error("Codex response failed: \(msg)")
+            logger.error("Codex response failed: \(msg, privacy: .public)")
             throw ClaudeService.ClaudeServiceError.streamError(msg)
 
         case "response.incomplete":

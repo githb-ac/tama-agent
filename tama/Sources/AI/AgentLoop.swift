@@ -70,7 +70,10 @@ final class AgentLoop {
                     }
                 )
             } catch {
-                logger.error("sendWithTools failed on turn \(turn + 1): \(error.localizedDescription)")
+                logger
+                    .error(
+                        "sendWithTools failed on turn \(turn + 1, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    )
                 throw error
             }
 

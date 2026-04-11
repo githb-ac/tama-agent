@@ -91,7 +91,14 @@ final class ClaudeService {
 
     // MARK: - API
 
+    /// Maximum retries for rate-limit (429) errors before giving up.
+    private static let maxRetries = 3
+
+    /// Base delay (seconds) for exponential backoff on 429 errors.
+    private static let baseRetryDelay: UInt64 = 2
+
     /// Sends a conversation with tool definitions and streams events back.
+    /// Automatically retries on 429 (rate limit) errors with exponential backoff.
     func sendWithTools(
         messages: [[String: Any]],
         tools: [[String: Any]],
@@ -99,8 +106,60 @@ final class ClaudeService {
         onEvent: @escaping @Sendable (StreamEvent) -> Void
     ) async throws -> ClaudeResponse {
         let model = currentModel
-        logger.info("sendWithTools — model: \(model.id), messages: \(messages.count), tools: \(tools.count)")
+        let provider = model.provider.displayName
+        logger.info(
+            "sendWithTools — model: \(model.id, privacy: .public), provider: \(provider, privacy: .public), msgs: \(messages.count), tools: \(tools.count)"
+        )
 
+        for attempt in 0 ... Self.maxRetries {
+            try Task.checkCancellation()
+
+            do {
+                return try await sendOnce(
+                    model: model,
+                    messages: messages,
+                    tools: tools,
+                    systemPrompt: systemPrompt,
+                    onEvent: onEvent
+                )
+            } catch let error as ClaudeServiceError {
+                if case let .apiError(statusCode, body) = error,
+                   statusCode == 429,
+                   attempt < Self.maxRetries,
+                   !Self.isHardUsageLimit(body)
+                {
+                    let delay = Self.baseRetryDelay * (1 << UInt64(attempt)) // 2s, 4s, 8s
+                    let total = Self.maxRetries + 1
+                    let cur = attempt + 1
+                    logger.warning(
+                        "Rate limited (429) attempt \(cur, privacy: .public)/\(total, privacy: .public) — retry in \(delay, privacy: .public)s"
+                    )
+                    try await Task.sleep(for: .seconds(delay))
+                    continue
+                }
+                throw error
+            }
+        }
+
+        // Should not reach here, but satisfy the compiler
+        throw ClaudeServiceError.apiError(statusCode: 429, body: "Rate limited after \(Self.maxRetries + 1) attempts")
+    }
+
+    /// Returns true if the 429 response body indicates a hard usage cap
+    /// (e.g. OpenAI free-tier limit) that won't resolve with retries.
+    private static func isHardUsageLimit(_ body: String) -> Bool {
+        let lower = body.lowercased()
+        return lower.contains("usage_limit_reached") || lower.contains("usage limit")
+    }
+
+    /// Sends a single request without retries.
+    private func sendOnce(
+        model: ModelInfo,
+        messages: [[String: Any]],
+        tools: [[String: Any]],
+        systemPrompt: String?,
+        onEvent: @escaping @Sendable (StreamEvent) -> Void
+    ) async throws -> ClaudeResponse {
         if model.provider.usesCodexAPI {
             return try await streamCodexRequest(
                 model: model,
@@ -203,7 +262,7 @@ final class ClaudeService {
                 if bodyData.count > 4096 { break }
             }
             let body = String(data: bodyData, encoding: .utf8) ?? "<no body>"
-            logger.error("Codex API failed — HTTP \(code): \(body)")
+            logger.error("Codex API failed — HTTP \(code, privacy: .public): \(body, privacy: .public)")
             throw ClaudeServiceError.apiError(statusCode: code, body: body)
         }
 
@@ -244,7 +303,7 @@ final class ClaudeService {
                 if bodyData.count > 4096 { break }
             }
             let body = String(data: bodyData, encoding: .utf8) ?? "<no body>"
-            logger.error("Anthropic API failed — HTTP \(code): \(body)")
+            logger.error("Anthropic API failed — HTTP \(code, privacy: .public): \(body, privacy: .public)")
             throw ClaudeServiceError.apiError(statusCode: code, body: body)
         }
 
@@ -329,7 +388,7 @@ final class ClaudeService {
                 if bodyData.count > 4096 { break }
             }
             let body = String(data: bodyData, encoding: .utf8) ?? "<no body>"
-            logger.error("OpenAI API failed — HTTP \(code): \(body)")
+            logger.error("OpenAI API failed — HTTP \(code, privacy: .public): \(body, privacy: .public)")
             throw ClaudeServiceError.apiError(statusCode: code, body: body)
         }
 

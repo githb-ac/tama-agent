@@ -4,6 +4,7 @@ import AppKit
 enum AppError {
     case overloaded
     case authFailed
+    case usageLimitReached(String)
     case subscriptionRequired(String)
     case notConnected
     case timeout
@@ -18,6 +19,8 @@ enum AppError {
             "API Busy"
         case .authFailed:
             "Sign In Required"
+        case .usageLimitReached:
+            "Usage Limit Reached"
         case .subscriptionRequired:
             "Subscription Needed"
         case .notConnected:
@@ -38,6 +41,8 @@ enum AppError {
             "The API is busy. Try again in a moment."
         case .authFailed:
             "Check your API key in AI Settings."
+        case let .usageLimitReached(detail):
+            detail
         case let .subscriptionRequired(detail):
             detail
         case .notConnected:
@@ -62,8 +67,8 @@ enum AppError {
         case .notConnected:
             // Neutral amber for "add API key" — not an error, just a state
             .systemOrange
-        case .authFailed, .subscriptionRequired:
-            // Softer orange for auth issues
+        case .authFailed, .subscriptionRequired, .usageLimitReached:
+            // Softer orange for auth/billing issues
             .systemOrange
         case .overloaded, .streamInterrupted, .unknown, .timeout:
             // Neutral amber for transient issues
@@ -85,6 +90,11 @@ enum AppError {
                 return .notConnected
             case let .apiError(statusCode, body):
                 let lowerBody = body.lowercased()
+
+                // Detect temporary usage limits (e.g. OpenAI free-tier cap)
+                if let resetInfo = Self.usageLimitInfo(statusCode: statusCode, body: lowerBody) {
+                    return .usageLimitReached(resetInfo)
+                }
 
                 // Detect subscription/billing errors from any provider
                 if Self.isBillingError(statusCode: statusCode, body: lowerBody) {
@@ -131,6 +141,42 @@ enum AppError {
         }
 
         return .unknown(error.localizedDescription)
+    }
+
+    /// Detects temporary usage limits and returns a user-friendly message with reset time.
+    private static func usageLimitInfo(statusCode: Int, body: String) -> String? {
+        guard statusCode == 429,
+              body.contains("usage_limit_reached") || body.contains("usage limit")
+        else { return nil }
+
+        // Try to extract resets_in_seconds from the JSON body
+        if let data = body.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let errorObj = json["error"] as? [String: Any],
+           let resetSeconds = errorObj["resets_in_seconds"] as? Int
+        {
+            let resetStr = formatResetTime(seconds: resetSeconds)
+            return "You've hit the usage limit for this model. Resets in \(resetStr). "
+                + "Switch to a different model in AI Settings."
+        }
+
+        return "You've hit the usage limit for this model. "
+            + "Try again later or switch to a different model in AI Settings."
+    }
+
+    /// Formats seconds into a human-readable duration like "2h 30m" or "45m".
+    private static func formatResetTime(seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        if hours > 0, minutes > 0 {
+            return "\(hours)h \(minutes)m"
+        } else if hours > 0 {
+            return "\(hours)h"
+        } else if minutes > 0 {
+            return "\(minutes)m"
+        } else {
+            return "less than a minute"
+        }
     }
 
     /// Detects subscription, billing, or quota errors that indicate a paid plan is needed.

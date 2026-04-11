@@ -733,7 +733,7 @@ final class PromptPanelController {
                     self?.logger.info("Agent task cancelled (post-error)")
                     return
                 }
-                self?.logger.error("Agent loop error: \(error.localizedDescription)")
+                self?.logger.error("Agent loop error: \(error.localizedDescription, privacy: .public)")
                 continuation.finish(throwing: error)
             }
         }
@@ -791,7 +791,7 @@ final class PromptPanelController {
                 if speakInline { SpeechService.shared.stop() }
                 return
             }
-            logger.error("Stream response error: \(error.localizedDescription)")
+            logger.error("Stream response error: \(error.localizedDescription, privacy: .public)")
             // Restore history to the state before this submit to avoid
             // corrupting it (the agent may have already updated it).
             if conversationHistory.count > historyCountBeforeSubmit {

@@ -87,7 +87,7 @@ final class OpenAIStreamParser {
         if let error = obj["error"] as? [String: Any],
            let message = error["message"] as? String
         {
-            logger.error("OpenAI stream error: \(message)")
+            logger.error("OpenAI stream error: \(message, privacy: .public)")
             throw ClaudeService.ClaudeServiceError.streamError(message)
         }
 

@@ -95,7 +95,7 @@ final class StreamParser {
         default:
             if !currentEvent.isEmpty {
                 // swiftformat:disable:next redundantSelf
-                logger.warning("Unrecognized stream event type: \(self.currentEvent)")
+                logger.warning("Unrecognized stream event type: \(self.currentEvent, privacy: .public)")
             }
         }
     }
@@ -187,7 +187,7 @@ final class StreamParser {
         if let error = obj["error"] as? [String: Any],
            let message = error["message"] as? String
         {
-            logger.error("Stream error from API: \(message)")
+            logger.error("Stream error from API: \(message, privacy: .public)")
             throw ClaudeService.ClaudeServiceError.streamError(message)
         }
     }

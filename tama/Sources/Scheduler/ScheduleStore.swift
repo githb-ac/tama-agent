@@ -302,7 +302,10 @@ final class ScheduleStore {
                 }
                 resultText = collectedText
             } catch {
-                logger.error("Routine '\(job.name)' failed: \(error.localizedDescription)")
+                logger
+                    .error(
+                        "Routine '\(job.name, privacy: .public)' failed: \(error.localizedDescription, privacy: .public)"
+                    )
                 resultText = "Routine failed: \(error.localizedDescription)"
             }
 
