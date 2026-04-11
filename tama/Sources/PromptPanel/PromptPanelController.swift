@@ -27,7 +27,7 @@ final class PromptPanelController {
     private var dismissObserver: NSObjectProtocol?
 
     /// Returns ~/Documents/Tama, creating it (and the Screenshots subdirectory) if needed.
-    private static func ensureWorkspace() -> String {
+    static func ensureWorkspace() -> String {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let workspace = docs.appendingPathComponent("Tama")
         if !FileManager.default.fileExists(atPath: workspace.path) {

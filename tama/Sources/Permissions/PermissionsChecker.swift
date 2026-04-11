@@ -116,6 +116,31 @@ final class PermissionsChecker {
         NSWorkspace.shared.open(url)
     }
 
+    // MARK: - Documents Folder
+
+    private var lastDocumentsFolderState: Bool?
+
+    /// Checks if the app can access ~/Documents by testing readability.
+    func isDocumentsFolderGranted() -> Bool {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let granted = FileManager.default.isReadableFile(atPath: documentsURL.path)
+        if lastDocumentsFolderState != granted {
+            lastDocumentsFolderState = granted
+            logger.info("Documents Folder permission: \(granted ? "granted" : "denied")")
+        }
+        return granted
+    }
+
+    /// Triggers the TCC prompt by accessing ~/Documents/Tama via ensureWorkspace().
+    func requestDocumentsFolderAccess() {
+        _ = PromptPanelController.ensureWorkspace()
+    }
+
+    func openFilesAndFoldersSettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!
+        NSWorkspace.shared.open(url)
+    }
+
     // MARK: - Microphone
 
     func isMicrophoneGranted() -> Bool {
