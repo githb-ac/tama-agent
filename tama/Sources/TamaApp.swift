@@ -82,6 +82,9 @@ struct TamaApp: App {
 /// App delegate handles hotkey registration at launch.
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_: Notification) {
+        // Force dark mode regardless of system appearance
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+
         let isLoggedIn = ClaudeService.shared.isLoggedIn
         let hasAccessibility = PermissionsChecker.shared.isAccessibilityGranted()
         logger.info("App launched — loggedIn: \(isLoggedIn), accessibility: \(hasAccessibility)")
