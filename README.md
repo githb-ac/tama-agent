@@ -15,52 +15,57 @@
   <a href="https://skool.com/kenkai"><img src="https://img.shields.io/badge/Skool-Community-7C3AED?style=for-the-badge" alt="Skool"></a>
 </p>
 
-**Tama Agent** is a macOS menu-bar AI assistant powered by Claude. It lives in your menu bar with an animated mascot, opens a floating prompt panel with ⌥Space, and runs a full agentic tool loop — bash, file editing, web fetching, scheduling, and more. Built natively in Swift 6 with AppKit and SwiftUI.
+**Tama Agent** is a macOS app that puts an AI assistant in your menu bar. Press ⌥Space and a floating panel pops up over whatever you're doing. Ask it questions, tell it to do things on your computer, talk to it with your voice, or set up automations that run on a schedule. Choose from multiple AI models — GPT-5.4, Codex, Kimi K2.5, MiniMax M2.7, MiMo-V2-Pro, and more.
 
-No dock icon. No Electron. Just a lightweight, always-there AI assistant.
+No dock icon. No browser tab. Just a lightweight assistant that's always one hotkey away.
 
 ---
 
 ## 🧠 Why this exists
 
-AI assistants shouldn't be a browser tab you have to find. They should be *right there* — one hotkey away, living alongside your workflow.
+Every time you want to use AI, you have to open a browser, find the right tab, and lose focus on what you were doing.
 
-Tama Agent sits in your menu bar, ready to go. Hit ⌥Space and a floating panel appears over whatever you're doing. Ask it something, tell it to run a command, edit a file, fetch a webpage, set a reminder. It uses Claude under the hood with a full agent loop that can chain tools together to complete multi-step tasks.
-
-Plus it has a little animated mascot. Because why not.
+Tama Agent is just *there*. Press ⌥Space and it appears over your current app. Ask it something, get your answer, and get back to work. It can run commands, edit files, search the web, manage your schedule, and more — all without leaving what you're doing.
 
 ---
 
-## ✨ What it actually does
+## ✨ What it can do
 
-### Floating prompt panel
-Hit ⌥Space from anywhere. A glass-styled floating panel appears over your current app. Type a message, get a streamed response with full markdown rendering, syntax-highlighted code blocks, and copy buttons. It stays out of your way when you don't need it.
+### Talk to it from anywhere
+Press ⌥Space and a floating panel appears over whatever app you're using. Type your message, get a response with nicely formatted text and code blocks. Close it when you're done. No window switching, no context loss.
 
-### Full agent tool loop
-Not just chat. Tama Agent runs a multi-turn agent loop (up to 50 turns) with real tools:
-- **Bash** — run shell commands directly
-- **Read / Write / Edit** — view and modify files on your system
-- **Grep / Find / Ls** — search and navigate your filesystem
-- **Web Fetch** — pull content from URLs with SSRF protection
+### Use your voice
+Hold ⌥Space to speak instead of type. Tama Agent transcribes what you say and responds. It can also read responses back to you with built-in text-to-speech — like having a conversation with your computer.
 
-Ask it to refactor a file, search your codebase, run a build, or scrape a webpage. It chains tools together to get the job done.
+### Do things on your computer
+It's not just a chatbot. You can ask it to:
+- Run terminal commands
+- Read, write, and edit files
+- Search through your folders and codebases
+- Pull information from websites
 
-### Scheduled reminders & routines
-Create reminders that fire as native macOS notifications. Set up routines — scheduled prompts that trigger full agent executions automatically:
+Ask it to clean up a file, find something in your project, run a build script, or summarize a webpage. It figures out the steps and does them.
+
+### Reminders & automations
+Set up reminders that show up as native macOS notifications. Or create routines — things that run automatically on a schedule:
 - "Remind me to review PRs in 2 hours"
-- "Every morning at 9am, check the weather and summarize my calendar"
-- "Run this cleanup script every Friday at 5pm"
+- "Every morning at 9am, check the weather and give me a summary"
+- "Run this script every Friday at 5pm"
 
-Supports one-off times, durations, and cron expressions.
+### 8 models across 4 providers
+Pick the AI that works best for you:
 
-### Animated Rive mascot
-A little companion that reacts to what's happening — idle, typing, waiting, responding. It lives in the panel and gives the app personality. Built with Rive animations.
+| Provider | Models |
+|----------|--------|
+| **OpenAI** | GPT-5.4, GPT-5.4 Mini, GPT-5.3 Codex, Codex Mini |
+| **Moonshot** | Kimi K2.5 |
+| **MiniMax** | M2.7, M2.7 Highspeed |
+| **Xiaomi** | MiMo-V2-Pro |
 
-### Native macOS experience
-Built with AppKit (NSPanel, NSTextView) and SwiftUI. No web views, no Electron wrapper. Feels like it belongs on your Mac. Runs as an LSUIElement — menu bar only, no dock icon.
+Just paste your API key or log in with OAuth and you're good to go. Switch between models anytime.
 
-### OAuth login with Claude
-Authenticate via Anthropic's OAuth2 PKCE flow. Credentials are encrypted and persisted securely. No API key pasting required.
+### Built for Mac
+Native macOS app — no Electron, no web views. Fast, lightweight, and feels like it belongs on your Mac. Lives in the menu bar so it never clutters your dock.
 
 ---
 
@@ -76,7 +81,7 @@ Authenticate via Anthropic's OAuth2 PKCE flow. Credentials are encrypted and per
 
 1. Drag to Applications, launch it
 2. It shows up in your menu bar
-3. Click it → AI Settings → log in with your Anthropic account
+3. Click it → AI Settings → add your API key or log in
 4. Hit ⌥Space and start chatting
 
 That's it.
@@ -107,7 +112,7 @@ xcodebuild -project Tama.xcodeproj -scheme Tama -configuration Debug build
 - **Language:** Swift 6.0 (strict concurrency)
 - **Platform:** macOS 15+, LSUIElement menu-bar app
 - **UI:** AppKit (NSPanel, NSTextView) + SwiftUI
-- **Dependencies:** RiveRuntime (mascot animations), Highlightr (syntax highlighting), Kokoro (TTS)
+- **Dependencies:** RiveRuntime (mascot animations), Highlightr (syntax highlighting), Kokoro (text-to-speech), MLX (on-device ML)
 - **Build:** XcodeGen (`project.yml` → .xcodeproj), SPM for packages
 
 ### Lint & format
@@ -128,8 +133,8 @@ swiftformat --config .swiftformat Tama/Sources
 ## 🔒 Privacy
 
 - Everything runs locally on your Mac
-- Conversations are sent to Anthropic's API (that's how Claude works)
-- OAuth credentials encrypted and stored locally
+- Conversations are sent to your chosen AI provider's API
+- Credentials encrypted and stored locally
 - No analytics, no telemetry, no tracking
 
 ---
