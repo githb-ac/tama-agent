@@ -80,7 +80,7 @@ final class SpeechService {
     /// How long to wait after the last chunk before auto-flushing the buffer.
     /// Tokens arrive every ~20-50ms, so the timer only fires during genuine pauses
     /// (between sentences, before tool calls, or at end of response).
-    private static let flushDelay: TimeInterval = 0.3
+    private static let flushDelay: TimeInterval = 0.6
 
     private init() {
         audioEngine.attach(playerNode)
@@ -194,9 +194,17 @@ final class SpeechService {
     }
 
     /// Forces any buffered text to be spoken immediately (e.g. before a tool call pause).
+    /// Skips tiny fragments unless the stream has ended to avoid choppy mid-sentence breaks.
     func flushBuffer() {
         guard isStreaming else { return }
         let text = stripMarkdown(streamBuffer).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Skip flushing tiny fragments while more text is still streaming —
+        // let the buffer grow until a sentence boundary or end-of-stream.
+        if text.count < Self.minFragmentLength, !streamEnded {
+            return
+        }
+
         streamBuffer = ""
 
         if !text.isEmpty {
@@ -454,8 +462,8 @@ final class SpeechService {
             guard !Task.isCancelled else { return }
 
             if let result {
-                bufferQueue.append(result)
-                playNextBuffer()
+                self.bufferQueue.append(result)
+                self.playNextBuffer()
             } else {
                 logger.warning("Kokoro generation failed, skipping: \(text.prefix(40))…")
                 utteranceDidFinish()

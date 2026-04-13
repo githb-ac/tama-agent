@@ -31,6 +31,12 @@ struct VoiceSettingsView: View {
 
             Divider().opacity(0.3).padding(.horizontal, 14)
 
+            speedSection
+                .opacity(manager.voiceEnabled ? 1 : 0.4)
+                .allowsHitTesting(manager.voiceEnabled)
+
+            Divider().opacity(0.3).padding(.horizontal, 14)
+
             footerSection
         }
         .frame(width: 380)
@@ -243,6 +249,61 @@ struct VoiceSettingsView: View {
                 )
                 .frame(width: 16)
         }
+    }
+
+    // MARK: - Speed Slider
+
+    private var speedSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Speech Speed")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+
+                Spacer()
+
+                Text(String(format: "%.2f×", manager.voiceSpeed))
+                    .font(.system(size: 12, weight: .medium).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            Slider(
+                value: $manager.voiceSpeed,
+                in: KokoroManager.minSpeed ... KokoroManager.maxSpeed,
+                step: 0.05
+            )
+            .tint(.white.opacity(0.6))
+
+            HStack {
+                Text("Slower")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.35))
+                Spacer()
+                if manager.voiceSpeed != KokoroManager.defaultSpeed {
+                    Button {
+                        manager.voiceSpeed = KokoroManager.defaultSpeed
+                    } label: {
+                        Text("Reset")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                }
+                Spacer()
+                Text("Faster")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.35))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Footer

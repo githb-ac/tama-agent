@@ -39,6 +39,14 @@ final class KokoroManager: ObservableObject {
         }
     }
 
+    @Published var voiceSpeed: Float {
+        didSet {
+            UserDefaults.standard.set(voiceSpeed, forKey: "kokoroVoiceSpeed")
+            // swiftformat:disable:next redundantSelf
+            logger.info("Voice speed changed to: \(self.voiceSpeed)")
+        }
+    }
+
     // MARK: - TTS Engine
 
     private var ttsEngine: KokoroTTS?
@@ -51,6 +59,9 @@ final class KokoroManager: ObservableObject {
     // swiftlint:disable:next modifier_order
     private nonisolated static let modelFileName = "kokoro-v1_0.safetensors"
     nonisolated static let sampleRate = KokoroTTS.Constants.samplingRate
+    nonisolated static let minSpeed: Float = 0.8
+    nonisolated static let maxSpeed: Float = 1.3
+    nonisolated static let defaultSpeed: Float = 1.0
 
     static let availableVoices: [VoiceInfo] = [
         VoiceInfo(id: "af_heart", name: "Heart", gender: .female, accent: "US English", grade: "A"),
@@ -77,8 +88,12 @@ final class KokoroManager: ObservableObject {
     private init() {
         voiceEnabled = UserDefaults.standard.object(forKey: "kokoroVoiceEnabled") as? Bool ?? true
         selectedVoice = UserDefaults.standard.string(forKey: "kokoroSelectedVoice") ?? "af_heart"
-        // swiftformat:disable:next redundantSelf
-        logger.info("KokoroManager initializing, voice enabled: \(self.voiceEnabled), voice: \(self.selectedVoice)")
+        let savedSpeed = UserDefaults.standard.object(forKey: "kokoroVoiceSpeed") as? Float ?? Self.defaultSpeed
+        voiceSpeed = min(max(savedSpeed, Self.minSpeed), Self.maxSpeed)
+        let enabled = voiceEnabled
+        let voice = selectedVoice
+        let speed = voiceSpeed
+        logger.info("KokoroManager initializing, enabled: \(enabled), voice: \(voice), speed: \(speed)")
         checkExistingFiles()
     }
 
@@ -330,6 +345,7 @@ final class KokoroManager: ObservableObject {
         let voice: MLXArray
         let voiceId: String
         let language: Language
+        let speed: Float
     }
 
     /// Captures engine + voice state for off-main-thread generation. Returns nil if not ready.
@@ -341,20 +357,32 @@ final class KokoroManager: ObservableObject {
         }
         guard let engine = ttsEngine, let voice = loadedVoices[selectedVoice] else { return nil }
         let language: Language = selectedVoice.hasPrefix("b") ? .enGB : .enUS
-        return GenerationContext(engine: engine, voice: voice, voiceId: selectedVoice, language: language)
+        return GenerationContext(
+            engine: engine,
+            voice: voice,
+            voiceId: selectedVoice,
+            language: language,
+            speed: voiceSpeed
+        )
     }
 
     /// Generates audio off the main thread using a captured context. Thread-safe.
-    nonisolated static func generateAudioBufferOffMain(text: String, context: GenerationContext) -> AVAudioPCMBuffer? {
+    nonisolated static func generateAudioBufferOffMain(
+        text: String,
+        context: GenerationContext
+    ) -> AVAudioPCMBuffer? {
         let logger = Logger(subsystem: "com.unstablemind.tama", category: "kokoro")
-        logger.debug("Generating audio — voice: \(context.voiceId), text: \(text.prefix(80))…")
+        logger.debug(
+            "Generating audio — voice: \(context.voiceId), speed: \(context.speed), text: \(text.prefix(80))…"
+        )
 
         let startTime = CFAbsoluteTimeGetCurrent()
         do {
             let (audio, _) = try context.engine.generateAudio(
                 voice: context.voice,
                 language: context.language,
-                text: text
+                text: text,
+                speed: context.speed
             )
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             let duration = Double(audio.count) / Double(sampleRate)
