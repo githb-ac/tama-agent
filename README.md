@@ -1,7 +1,7 @@
 # Tama Agent
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/KenKaiii/tamagotchai/main/assets/icon_1024.png" alt="Tama Agent" width="200">
+  <img src="https://raw.githubusercontent.com/KenKaiii/tama-agent/main/assets/icon_1024.png" alt="Tama Agent" width="200">
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/KenKaiii/tamagotchai/releases/latest"><img src="https://img.shields.io/github/v/release/KenKaiii/tamagotchai?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
+  <a href="https://github.com/KenKaiii/tama-agent/releases/latest"><img src="https://img.shields.io/github/v/release/KenKaiii/tama-agent?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
   <a href="https://youtube.com/@kenkaidoesai"><img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube"></a>
   <a href="https://skool.com/kenkai"><img src="https://img.shields.io/badge/Skool-Community-7C3AED?style=for-the-badge" alt="Skool"></a>
@@ -75,7 +75,7 @@ Native macOS app — no Electron, no web views. Fast, lightweight, and feels lik
 
 | Mac | Link |
 |-----|------|
-| Apple Silicon (M1/M2/M3/M4) | [Download](https://github.com/KenKaiii/tamagotchai/releases/latest) |
+| Apple Silicon (M1/M2/M3/M4) | [Download](https://github.com/KenKaiii/tama-agent/releases/latest) |
 
 ### Setup
 
@@ -91,8 +91,8 @@ That's it.
 ## 🛠️ For developers
 
 ```bash
-git clone https://github.com/KenKaiii/tamagotchai.git
-cd tamagotchai
+git clone https://github.com/KenKaiii/tama-agent.git
+cd tama-agent
 xcodegen generate
 xcodebuild -project Tama.xcodeproj -scheme Tama -configuration Debug build
 ```
@@ -128,5 +128,5 @@ MIT
 </p>
 
 <p align="center">
-  <a href="https://github.com/KenKaiii/tamagotchai/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge" alt="Download"></a>
+  <a href="https://github.com/KenKaiii/tama-agent/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge" alt="Download"></a>
 </p>
