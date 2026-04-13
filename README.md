@@ -1,4 +1,4 @@
-# 🐱 Tama Agent
+# Tama Agent
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/KenKaiii/tamagotchai/main/assets/icon_1024.png" alt="Tama Agent" width="200">
