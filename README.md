@@ -34,8 +34,11 @@ Tama Agent is just *there*. Press ⌥ + Space and it appears over your current a
 ### Talk to it from anywhere
 Press ⌥ + Space and a floating panel appears over whatever app you're using. Type your message, get a response with nicely formatted text and code blocks. Close it when you're done. No window switching, no context loss.
 
+### Call Tama
+Start a voice call with Tama and have a real conversation. It listens, thinks, and talks back — just like a phone call with an AI that can actually do things. While you're talking, Tama has full access to all its tools: run commands, edit files, search the web, manage your schedule. Ask it to look something up, fix a bug, or set a reminder, all mid-conversation. Built-in speech recognition and text-to-speech powered by Kokoro — everything runs locally.
+
 ### Use your voice
-Hold ⌥ + Space to speak instead of type. Tama Agent transcribes what you say and responds. It can also read responses back to you with built-in text-to-speech — like having a conversation with your computer.
+Hold ⌥ + Space to speak instead of type. Tama Agent transcribes what you say and responds. It can also read responses back to you with built-in text-to-speech.
 
 ### Do things on your computer
 It's not just a chatbot. You can ask it to:
