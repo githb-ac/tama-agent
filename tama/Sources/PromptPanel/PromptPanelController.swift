@@ -280,6 +280,8 @@ final class PromptPanelController {
             // to await finishStreaming() and restart voice capture when done.
             if isVoiceMode, activeAgentTask != nil {
                 logger.info("Voice mode dismiss — keeping TTS alive for background response")
+                // Show notch activity indicator if agent is still working in the background.
+                NotchActivityIndicator.addProcess(id: "chat-agent", label: "Thinking…")
                 VoiceService.shared.stopFollowUpCapture()
                 panel?.hideToolIndicator()
                 panel?.hideThinkingIndicator()
@@ -746,6 +748,7 @@ final class PromptPanelController {
                     }
                 )
 
+                self?.activeAgentTask = nil
                 self?.completeAgentRun(
                     updatedHistory: updatedHistory,
                     capturedSessionId: capturedSessionId,
