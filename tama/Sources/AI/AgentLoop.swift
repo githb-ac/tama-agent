@@ -12,7 +12,10 @@ enum AgentEvent: Sendable {
 }
 
 /// Thrown when the agent invokes the dismiss tool to close the panel.
-struct AgentDismissError: Error {}
+/// Carries the conversation so the caller can save it before dismissing.
+struct AgentDismissError: Error {
+    let conversation: [[String: Any]]
+}
 
 /// Runs the tool execution loop: send → tool_use → execute → tool_result → repeat.
 @MainActor
@@ -111,13 +114,13 @@ final class AgentLoop {
             // If dismiss tool is in the calls, throw to immediately stop the loop
             if toolCalls.contains(where: { $0.name == "dismiss" }) {
                 logger.info("Dismiss tool detected — ending agent loop")
-                throw AgentDismissError()
+                throw AgentDismissError(conversation: conversation)
             }
 
             // If end_call tool is in the calls, throw to end the voice call
             if toolCalls.contains(where: { $0.name == "end_call" }) {
                 logger.info("End call tool detected — ending agent loop")
-                throw AgentEndCallError()
+                throw AgentEndCallError(conversation: conversation)
             }
 
             // Execute each tool and collect results

@@ -754,7 +754,12 @@ final class PromptPanelController {
                     capturedSessionId: capturedSessionId,
                     backgroundAccumulatedText: backgroundAccumulatedText
                 )
-            } catch is AgentDismissError {
+            } catch let error as AgentDismissError {
+                // Save the conversation from the error before dismissing
+                if let self {
+                    conversationHistory = error.conversation
+                    saveCurrentSession()
+                }
                 self?.handleAgentDismissed()
             } catch is CancellationError {
                 self?.logger.info("Agent task cancelled")

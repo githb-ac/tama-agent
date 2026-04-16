@@ -217,22 +217,32 @@ final class CallSession {
                 )
 
                 logger.info("[AGENT] Done — \(updatedHistory.count) messages")
-                guard isActive else { return }
                 conversationHistory = updatedHistory
+
+                // Always save the conversation, even if the call ended while the agent was running.
+                // This ensures the session has all messages when viewed later.
+                guard isActive else {
+                    saveSession()
+                    return
+                }
 
                 logger.info("[AGENT] Waiting for TTS...")
                 await SpeechService.shared.finishStreaming()
                 logger.info("[AGENT] TTS finished")
 
-                guard isActive else { return }
+                guard isActive else {
+                    saveSession()
+                    return
+                }
                 isResponding = false
                 saveSession()
 
                 // Start listening for next utterance
                 startListening()
-            } catch is AgentEndCallError {
+            } catch let error as AgentEndCallError {
                 logger.info("[AGENT] End call requested — finishing TTS then hanging up")
                 NotchActivityIndicator.removeProcess(id: "call-agent")
+                conversationHistory = error.conversation
                 await SpeechService.shared.finishStreaming()
                 saveSession()
                 // End the call via NotchCallButton (updates UI + calls self.end())
@@ -240,9 +250,11 @@ final class CallSession {
             } catch is CancellationError {
                 logger.info("[AGENT] Cancelled")
                 NotchActivityIndicator.removeProcess(id: "call-agent")
-            } catch is AgentDismissError {
+            } catch let error as AgentDismissError {
                 logger.info("[AGENT] Dismissed")
                 NotchActivityIndicator.removeProcess(id: "call-agent")
+                conversationHistory = error.conversation
+                saveSession()
             } catch let urlError as URLError where urlError.code == .cancelled {
                 logger.info("[AGENT] Cancelled (URLSession)")
                 NotchActivityIndicator.removeProcess(id: "call-agent")

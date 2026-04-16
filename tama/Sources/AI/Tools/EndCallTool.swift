@@ -7,7 +7,10 @@ private let logger = Logger(
 )
 
 /// Thrown when the agent invokes the end_call tool to hang up.
-struct AgentEndCallError: Error {}
+/// Carries the conversation so the caller can save it before ending.
+struct AgentEndCallError: Error {
+    let conversation: [[String: Any]]
+}
 
 /// Tool that allows the agent to end the voice call.
 struct EndCallTool: AgentTool, @unchecked Sendable {
